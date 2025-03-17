@@ -4958,7 +4958,7 @@ class BaseObservation(GridObjects):
                              maintenance=maintenance)
         ch.max_iter = ch.real_data.max_iter
         
-        backend = self._obs_env.backend.copy()
+        backend = self._obs_env.backend.copy_public()
         backend._is_loaded = True
         nb_highres_called = self._obs_env.highres_sim_counter.nb_highres_called
         res = ForecastEnv(**self._ptr_kwargs_env,

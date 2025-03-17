@@ -112,6 +112,15 @@ Native multi agents support:
 - [BREAKING] the way actions is serialized has been changed with respect to the `from_vect` /
   `to_vect` method. This might introduce some issues when loading previously saved actions
   with this methods.
+- [BREAKING] first kwargs of `backend.apply_action` method is now spelled `backend_action` 
+  (instead of backendAction)
+- [BREAKING] (not yet) rationalization of the backend public / private API part. The 
+  environment (and simulator, forecast env etc.) will always call the method `_public` 
+  for example `load_grid_public`, `reset_public`, `copy_public` and `apply_action_public`. 
+  These function of the base `Backend` should NOT be overriden, and will internally call 
+  the functions `load_grid`, `reset`, `copy` and `apply_action` which were part of the public
+  API. These last member functions will be renamed (in a later version) `_load_grid`,
+  `_reset`, `_copy` and `_apply_action` to reflect this change. NOT for this version however !
 - [FIXED] issue https://github.com/Grid2op/grid2op/issues/657
 - [FIXED] missing an import on the `MaskedEnvironment` class
 - [FIXED] a bug when trying to set the load_p, load_q, gen_p, gen_v by names.
@@ -143,6 +152,7 @@ Native multi agents support:
 - [FIXED] a powerflow is run when the environment is first created even before the initial "env.step"
   function is called. This is to ensure proper behaviour if env is used without being reset.
 - [FIXED] no error was catched if the backend could not properly apply the action sent by the environment.
+- [FIXED] an issue in the AAA tests: when backend does not support storages, some tests were skipped not correctly
 - [ADDED] possibility to set the "thermal limits" when calling `env.reset(..., options={"thermal limit": xxx})`
 - [ADDED] possibility to retrieve some structural information about elements with
   with `gridobj.get_line_info(...)`, `gridobj.get_load_info(...)`, `gridobj.get_gen_info(...)` 
@@ -187,7 +197,8 @@ Native multi agents support:
   that allows not to recompute it over and over again (this is internal API please do not change 
   it... unless you know what you are doing)
 - [IMPROVED] `ForecastEnv` is now part of the public API.
-    
+- [IMPROVED] no need to call `self._compute_pos_big_top()` at the end of the implementation of `backend.load_grid()`
+
 [1.10.5] - 2025-03-07
 ------------------------
 - [FIXED] force pandapower < 3 otherwise pandapower backend does not work and 

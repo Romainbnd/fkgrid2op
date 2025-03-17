@@ -522,6 +522,12 @@ class _BackendAction(GridObjects):
         self._lines_or_bus = None
         self._lines_ex_bus = None
         self._storage_bus = None
+        
+        #: .. versionadded: 1.11.0
+        self._is_cached = False
+        self._injections_cached = None
+        self._topo_cached = None
+        self._shunts_cached = None
 
     def __deepcopy__(self, memodict={}) -> Self:
         
@@ -818,7 +824,8 @@ class _BackendAction(GridObjects):
         The updated state of `self` after the new action `other` has been added to it.
         
         """
-
+        self._is_cached = False  # TODO speed here: if no modification does not invalidate the cache
+        
         set_status = 1 * other._set_line_status
         switch_status = other._switch_line_status
         set_topo_vect = 1 * other._set_topo_vect
@@ -944,20 +951,24 @@ class _BackendAction(GridObjects):
           position in the `topo_vect` vector)
         
         """
+        if self._is_cached:
+            return self.activated_bus, self._injections_cached, self._topo_cached, self._shunts_cached
+        
         self._assign_0_to_disco_el()
-        injections = (
+        self._injections_cached = (
             self.prod_p,
             self.prod_v,
             self.load_p,
             self.load_q,
             self.storage_power,
         )
-        topo = self.current_topo
-        shunts = None
+        self._topo_cached = self.current_topo
+        self._shunts_cached = None
         if type(self).shunts_data_available:
-            shunts = self.shunt_p, self.shunt_q, self.shunt_bus
+            self._shunts_cached = self.shunt_p, self.shunt_q, self.shunt_bus
         self._get_active_bus()
-        return self.activated_bus, injections, topo, shunts
+        self._is_cached = True
+        return self.activated_bus, self._injections_cached, self._topo_cached, self._shunts_cached
     
     def get_loads_bus(self) -> ValueStore:
         """

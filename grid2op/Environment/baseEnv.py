@@ -747,7 +747,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         new_obj._backend_action = copy.deepcopy(self._backend_action)
 
         # specific to Basic Env, do not change
-        new_obj.backend = self.backend.copy()
+        new_obj.backend = self.backend.copy_public()
         if self._thermal_limit_a is not None:
             new_obj.backend.set_thermal_limit(self._thermal_limit_a)
         new_obj._thermal_limit_a = copy.deepcopy(self._thermal_limit_a)
