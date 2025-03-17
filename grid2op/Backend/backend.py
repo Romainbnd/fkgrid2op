@@ -462,17 +462,17 @@ class Backend(GridObjects, ABC):
         # store the states
         loads_bus = backend_action.get_loads_bus()
         self._load_bus_target.flags.writeable = True
-        self._load_bus_target[loads_bus.changed] = loads_bus.values
+        self._load_bus_target[loads_bus.changed] = loads_bus.values[loads_bus.changed]
         self._load_bus_target.flags.writeable = False
         
         gens_bus = backend_action.get_gens_bus()
         self._gen_bus_target.flags.writeable = True
-        self._gen_bus_target[gens_bus.changed] = gens_bus.values
+        self._gen_bus_target[gens_bus.changed] = gens_bus.values[gens_bus.changed]
         self._gen_bus_target.flags.writeable = False
         
         stos_bus = backend_action.get_storages_bus()
         self._storage_bus_target.flags.writeable = True
-        self._storage_bus_target[stos_bus.changed] = stos_bus.values
+        self._storage_bus_target[stos_bus.changed] = stos_bus.values[stos_bus.changed]
         self._storage_bus_target.flags.writeable = False
         # TODO shunts
         
