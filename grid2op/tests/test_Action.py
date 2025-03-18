@@ -1409,7 +1409,6 @@ class TestActionBase(ABC):
         assert np.all(
             res.line_ex_pos_topo_vect == self.helper_action.line_ex_pos_topo_vect
         )
-        # pdb.set_trace()
         assert issubclass(res.actionClass, self.helper_action._init_subtype)
 
     def test_json_serializable(self):

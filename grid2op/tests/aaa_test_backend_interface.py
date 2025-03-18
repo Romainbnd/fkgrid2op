@@ -835,8 +835,6 @@ class AAATestBackendAPI(MakeBackend):
             # new (1.11.0) test here
             maybe_exc = backend._runpf_with_diverging_exception(is_dc=is_dc)           
             detachment_allowed = type(backend).detachment_is_allowed
-        import pdb
-        pdb.set_trace()
         if not detachment_allowed:
             # should raise in all cases as the backend prevent detachment
             self._aux_aux_test_detachment_should_fail(maybe_exc)
