@@ -59,9 +59,9 @@ class AAATestBackendAPI(MakeBackend):
             
             topo_ = backend.get_topo_vect()
             cls = type(backend)
-            self.backend.update_bus_target_after_pf(topo_[cls.load_pos_topo_vect],
-                                                    topo_[cls.gen_pos_topo_vect],
-                                                    topo_[cls.storage_pos_topo_vect])
+            backend.update_bus_target_after_pf(topo_[cls.load_pos_topo_vect],
+                                               topo_[cls.gen_pos_topo_vect],
+                                               topo_[cls.storage_pos_topo_vect])
         except Grid2OpException as exc_:
             # impossible to retrieve the topology without running a powerflow
             backend.update_bus_target_after_pf(1, 1, 1)
