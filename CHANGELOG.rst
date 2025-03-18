@@ -25,6 +25,7 @@ General grid2op improvments:
 - Code and test the "load from disk" method
 - add a "plot action" method
 - does not read every data of the backend if not used
+- backend converter: now test it properly with pandapower / lightsim2grid and pypowsybl2grid
 
 Better multi processing support: 
 
@@ -96,6 +97,8 @@ Native multi agents support:
 
 - cf ad-hoc branch (dev-multiagents)
 - properly model interconnecting powerlines
+- add detachment
+- add change_bus / set_bus
 
 [1.11.0] - 202x-yy-zz
 -----------------------

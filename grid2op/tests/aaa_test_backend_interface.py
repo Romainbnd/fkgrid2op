@@ -55,6 +55,16 @@ class AAATestBackendAPI(MakeBackend):
         backend.load_redispacthing_data("tmp")  # pretend there is no generator
         backend.load_storage_data(self.get_path())
         backend.assert_grid_correct()
+        try:
+            
+            topo_ = backend.get_topo_vect()
+            cls = type(cls)
+            self.backend.update_bus_target_after_pf(topo_[cls.load_pos_topo_vect],
+                                                    topo_[cls.gen_pos_topo_vect],
+                                                    topo_[cls.storage_pos_topo_vect])
+        except :
+            # impossible to retrieve the topology without running a powerflow
+            backend.update_bus_target_after_pf(1, 1, 1)
         return backend
     
     def test_00create_backend(self):
@@ -825,7 +835,8 @@ class AAATestBackendAPI(MakeBackend):
             # new (1.11.0) test here
             maybe_exc = backend._runpf_with_diverging_exception(is_dc=is_dc)           
             detachment_allowed = type(backend).detachment_is_allowed
-            
+        import pdb
+        pdb.set_trace()
         if not detachment_allowed:
             # should raise in all cases as the backend prevent detachment
             self._aux_aux_test_detachment_should_fail(maybe_exc)
@@ -1241,7 +1252,7 @@ class AAATestBackendAPI(MakeBackend):
         backend = self.aux_make_backend()
         cls = type(backend)
         if cls.n_storage == 0:
-            self.skipTest("Your backend does not support storage unit")
+            self.skipTest("Your backend does not support storage unit (or there is none on your grid)")
         
         storage_id = 0
         # a disconnected storage
@@ -1789,6 +1800,7 @@ class AAATestBackendAPI(MakeBackend):
             self.skipTest("Cannot perform this test as your backend does not appear "
                           "to support the `detachment` information: a disconnect load "
                           "or generator is necessarily causing a game over.")
+            
         self.test_16_isolated_load_stops_computation(allow_detachment=True)
         self.test_17_isolated_gen_stops_computation(allow_detachment=True)
         self.test_18_isolated_shunt_stops_computation(allow_detachment=True)
@@ -1799,7 +1811,101 @@ class AAATestBackendAPI(MakeBackend):
         if cls.n_storage > 0:
             self.test_31_disconnected_storage_with_p_stops_computation(allow_detachment=True)
     
-    # TODO test: gen_v of disconnected generator are 0
-    # TODO test : load_v of disco load are 0
-    # TODO test: storage_v of disco sto are 0
+    def test_34_load_disco_v_zero(self):
+        """Tests that your backend properly says that a disconnected load has a v of 0.
+        
+        This test supposes that :
+        
+        - backend.load_grid(...) is implemented
+        - backend.runpf() (AC and DC mode) is implemented
+        - backend.apply_action() for topology modification (on load)
+        
+        It is only performed if you backend supports detachment
+        
+        .. versionadded:: 1.11.0
+        
+        """
+        self.skip_if_needed()
+        backend = self.aux_make_backend(allow_detachment=True)
+        cls = type(backend)
+        if not cls.detachment_is_allowed:
+            self.skipTest("Cannot perform this test as your backend does not appear "
+                          "to support the `detachment` information: a disconnect load "
+                          "or generator is necessarily causing a game over.")
+            
+        # a load is disconnected
+        action = type(backend)._complete_action_class()
+        action.update({"set_bus": {"loads_id": [(0, -1)]}})
+        bk_act = type(backend).my_bk_act_class()
+        bk_act += action
+        backend.apply_action_public(bk_act)
+        
+        # DC
+        res = backend.runpf(is_dc=True)  
+        assert len(res) == 2
+        assert res[0], "your backend should have converged with disconnect of load 0 (DC)"
+        assert res[1] is None, "your backend should have converged with disconnect of load 0 (DC)"
+        load_p, load_q, load_v = backend.loads_info()
+        assert np.abs(load_p[0]) <= 1e-8, f"disconnected load should have a p of 0, found {load_p[0]} (DC)"
+        assert np.abs(load_q[0]) <= 1e-8, f"disconnected load should have a q of 0, found {load_q[0]} (DC)"
+        assert np.abs(load_v[0]) <= 1e-8, f"disconnected load should have a voltage set to 0, found {load_v[0]} (DC)"
+        
+        # AC
+        res = backend.runpf(is_dc=False)  
+        assert len(res) == 2
+        assert res[0], "your backend should have converged with disconnect of load 0 (AC)"
+        assert res[1] is None, "your backend should have converged with disconnect of load 0 (AC)"
+        load_p, load_q, load_v = backend.loads_info()
+        assert np.abs(load_p[0]) <= 1e-8, f"disconnected load should have a p of 0, found {load_p[0]} (AC)"
+        assert np.abs(load_q[0]) <= 1e-8, f"disconnected load should have a q of 0, found {load_q[0]} (AC)"
+        assert np.abs(load_v[0]) <= 1e-8, f"disconnected load should have a voltage set to 0, found {load_v[0]} (AC)"
+        
+    def test_35_gen_disco_v_zero(self):
+        """Tests that your backend properly says that a disconnected generator has a v of 0.
+        
+        This test supposes that :
+        
+        - backend.load_grid(...) is implemented
+        - backend.runpf() (AC and DC mode) is implemented
+        - backend.apply_action() for topology modification (on gen)
+        
+        It is only performed if you backend supports detachment
+        
+        .. versionadded:: 1.11.0
+        
+        """
+        self.skip_if_needed()
+        backend = self.aux_make_backend(allow_detachment=True)
+        cls = type(backend)
+        if not cls.detachment_is_allowed:
+            self.skipTest("Cannot perform this test as your backend does not appear "
+                          "to support the `detachment` information: a disconnect load "
+                          "or generator is necessarily causing a game over.")
+            
+        # a load is disconnected
+        action = type(backend)._complete_action_class()
+        action.update({"set_bus": {"generators_id": [(0, -1)]}})
+        bk_act = type(backend).my_bk_act_class()
+        bk_act += action
+        backend.apply_action_public(bk_act)
+        # DC
+        res = backend.runpf(is_dc=True)  
+        assert len(res) == 2
+        assert res[0], "your backend should have converged with disconnect of gen 0 (DC)"
+        assert res[1] is None, "your backend should have converged with disconnect of gen 0 (DC)"
+        gen_p, gen_q, gen_v = backend.generators_info()
+        assert np.abs(gen_p[0]) <= 1e-8, f"disconnected gen should have a p of 0, found {gen_p[0]} (DC)"
+        assert np.abs(gen_q[0]) <= 1e-8, f"disconnected gen should have a q of 0, found {gen_q[0]} (DC)"
+        assert np.abs(gen_v[0]) <= 1e-8, f"disconnected gen should have a v of 0, found {gen_v[0]} (DC)"
+        
+        # AC
+        res = backend.runpf(is_dc=False)  
+        assert len(res) == 2
+        assert res[0], "your backend should have converged with disconnect of gen 0 (AC)"
+        assert res[1] is None, "your backend should have converged with disconnect of gen 0 (AC)"
+        gen_p, gen_q, gen_v = backend.generators_info()
+        assert np.abs(gen_p[0]) <= 1e-8, f"disconnected gen should have a p of 0, found {gen_p[0]} (AC)"
+        assert np.abs(gen_q[0]) <= 1e-8, f"disconnected gen should have a q of 0, found {gen_q[0]} (AC)"
+        assert np.abs(gen_v[0]) <= 1e-8, f"disconnected gen should have a voltage set to 0, found {gen_v[0]} (AC)"
+            
     # TODO test: disconnect a gen a load a conso and then connect it again and see what you end up with.

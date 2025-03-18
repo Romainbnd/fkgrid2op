@@ -3233,7 +3233,6 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # save the current topology as "last" topology (for connected powerlines)
         # and update the state of the disconnected powerline due to cascading failure
         self._backend_action.update_state(disc_lines)
-
         # one timestep passed, i can maybe reconnect some lines
         self._times_before_line_status_actionable[
             self._times_before_line_status_actionable > 0
@@ -3303,13 +3302,16 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         
         # set the status of the other elements (if the backend 
         # disconnect them)
+        topo_ = self.backend.get_topo_vect()
         if cls.detachment_is_allowed:
             gen_detached_user = self._backend_action.get_gen_detached()
-            topo_ = self.backend.get_topo_vect()
             self._backend_action.current_topo.values[:] = topo_
             self._aux_update_detachment_info()
         else:
             gen_detached_user = np.zeros(cls.n_gen, dtype=dt_bool)
+        self.backend.update_bus_target_after_pf(topo_[cls.load_pos_topo_vect],
+                                                topo_[cls.gen_pos_topo_vect],
+                                                topo_[cls.storage_pos_topo_vect])
             
         # problem with the gen_activeprod_t above, is that the slack bus absorbs alone all the losses
         # of the system. So basically, when it's too high (higher than the ramp) it can
