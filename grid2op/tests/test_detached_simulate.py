@@ -15,8 +15,7 @@ import unittest
 import warnings
 import numpy as np
 import pdb
-# from pypowsybl2grid import PyPowSyBlBackend
-# from lightsim2grid import LightSimBackend
+
 
 class TestDetachSimulate(unittest.TestCase):
     def setUp(self):
@@ -29,7 +28,6 @@ class TestDetachSimulate(unittest.TestCase):
                                     _add_to_name=type(self).__name__,
                                     chronics_class=ChangeNothing,
                                     data_feeding_kwargs={"h_forecast": [5, 10, 15, 20, 25, 30]},
-                                    # backend=PyPowSyBlBackend()
                                     )
         paramerters = self.env.parameters
         paramerters.MAX_SUB_CHANGED = 99999

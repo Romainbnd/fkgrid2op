@@ -1266,7 +1266,7 @@ class Backend(GridObjects, ABC):
         action.update({"set_line_status": [(id_, -1)]})
         bk_act = my_cls.my_bk_act_class()
         bk_act += action
-        self.apply_action(bk_act)
+        self.apply_action_public(bk_act)
 
     def _runpf_with_diverging_exception(self, is_dc : bool) -> Optional[Exception]:
         """
@@ -2213,7 +2213,7 @@ class Backend(GridObjects, ABC):
             warnings.warn("Backend supports shunt but not the observation. This behaviour is non standard.")
         act.update(dict_)
         backend_action += act
-        self.apply_action(backend_action)
+        self.apply_action_public(backend_action)
         backend_action.reset()  # already processed by the backend
         return backend_action
 

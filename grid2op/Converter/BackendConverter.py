@@ -181,6 +181,33 @@ class BackendConverter(Backend):
             # both source and target backend understands the same format
             self.target_backend.load_grid(path, filename)
         
+        self.source_backend._compute_pos_big_topo()
+        self.target_backend._compute_pos_big_topo()
+        
+        # and now initialize the attributes (see list bellow)
+        li_attrs = ["n_line", "n_gen", "n_load", "n_sub",
+                    "load_to_subid", "gen_to_subid", "line_or_to_subid",
+                    "line_ex_to_subid", "name_load", "name_gen",
+                    "name_line", "name_sub",
+                    "sub_info", "dim_topo",
+                    "load_to_sub_pos",
+                    "gen_to_sub_pos",
+                    "line_or_to_sub_pos",
+                    "line_ex_to_sub_pos",
+                    "load_pos_topo_vect",
+                    "gen_pos_topo_vect",
+                    "line_or_pos_topo_vect",
+                    "line_ex_pos_topo_vect",
+                    # storage
+                    "name_storage",
+                    "n_storage",
+                    "storage_to_subid",
+                    "storage_to_sub_pos",
+                    "storage_pos_topo_vect"
+                    ]
+        for attr_nm in li_attrs:
+            setattr(self, attr_nm, getattr(self.source_backend, attr_nm))
+        
         # TODO in case source supports the "more than 2" feature but not target
         # it's unclear how I can "reload" the grid...
         # if (not self.target_backend._missing_two_busbars_support_info and
@@ -234,13 +261,13 @@ class BackendConverter(Backend):
                 == sorted(self.target_backend.name_sub)
             ):
                 for id_source, nm_source in enumerate(self.source_backend.name_sub):
-                    id_target = (self.target_backend.name_sub == nm_source).nonzero()[0]
+                    id_target = (self.target_backend.name_sub == nm_source).nonzero()[0][0]
                     self._sub_tg2sr[id_source] = id_target
                     self._sub_sr2tg[id_target] = id_source
         else:
             for id_source, nm_source in enumerate(self.source_backend.name_sub):
                 nm_target = self.sub_source_target[nm_source]
-                id_target = (self.target_backend.name_sub == nm_target).nonzero()[0]
+                id_target = (self.target_backend.name_sub == nm_target).nonzero()[0][0]
                 self._sub_tg2sr[id_source] = id_target
                 self._sub_sr2tg[id_target] = id_source
 
@@ -596,9 +623,12 @@ class BackendConverter(Backend):
         self.source_backend.close()
         self.target_backend.close()
 
-    def apply_action(self, action):
+    def apply_action_public(self, backend_action):
+        return super().apply_action_public(backend_action)
+    
+    def apply_action(self, backend_action):
         # action is from the source backend
-        action_target = self._transform_action(action)
+        action_target = self._transform_action(backend_action)
         self.target_backend.apply_action(action_target)
 
     def runpf(self, is_dc=False):
