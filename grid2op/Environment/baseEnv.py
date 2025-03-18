@@ -3635,7 +3635,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
                 self._time_opponent += tock - tick
                 self._time_create_bk_act += tock - beg_
                 try:
-                    self.backend.apply_action(self._backend_action)
+                    self.backend.apply_action_public(self._backend_action)
                 except ImpossibleTopology as exc_:
                     has_error = True
                     except_.append(exc_)

@@ -475,7 +475,6 @@ class Backend(GridObjects, ABC):
         self._storage_bus_target[stos_bus.changed] = stos_bus.values[stos_bus.changed]
         self._storage_bus_target.flags.writeable = False
         # TODO shunts
-        
         return self.apply_action(backend_action)
         
     def update_bus_target_after_pf(self, loads_bus, gens_bus, stos_bus):
