@@ -47,7 +47,7 @@ class TestObservationHazard(unittest.TestCase):
         # self.backend = ADNBackend()
         # self.path_matpower = "/home/donnotben/Documents/RL4Grid/RL4Grid/data"
         # self.case_file = "ieee14_ADN.xml"
-        # self.backend.load_grid(self.path_matpower, self.case_file)
+        # self.backend.load_grid_public(self.path_matpower, self.case_file)
         self.tolvect = 1e-2
         self.tol_one = 1e-5
         self.game_rules = RulesChecker()

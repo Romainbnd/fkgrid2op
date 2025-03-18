@@ -217,7 +217,7 @@ class Simulator(object):
             grid_path_loaded = os.path.join(path_env, grid_forecast_name)
         else:
             grid_path_loaded = grid_path 
-        tmp_backend.load_grid(grid_path_loaded)
+        tmp_backend.load_grid_public(grid_path_loaded)
         tmp_backend.assert_grid_correct()
         tmp_backend.runpf()
         tmp_backend.assert_grid_correct_after_powerflow()

@@ -103,7 +103,7 @@ class BaseTestLoadingCase(MakeBackend):
         case_file = self.get_casefile()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            backend.load_grid(path_matpower, case_file)
+            backend.load_grid_public(path_matpower, case_file)
         type(backend).set_env_name("BaseTestLoadingCase")
         backend.assert_grid_correct()
 
@@ -197,7 +197,7 @@ class BaseTestLoadingCase(MakeBackend):
         case_file = self.get_casefile()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            backend.load_grid(path_matpower, case_file)
+            backend.load_grid_public(path_matpower, case_file)
         type(backend).set_env_name("TestLoadingCase_env2_test_assert_grid_correct")
         backend.assert_grid_correct()
         conv, *_  = backend.runpf()
@@ -218,7 +218,7 @@ class BaseTestLoadingBackendFunc(MakeBackend):
         self.case_file = self.get_casefile()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, self.case_file)
+            self.backend.load_grid_public(self.path_matpower, self.case_file)
         type(self.backend).set_env_name("TestLoadingBackendFunc_env")
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
@@ -828,7 +828,7 @@ class BaseTestTopoAction(MakeBackend):
         self.case_file = self.get_casefile()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, self.case_file)
+            self.backend.load_grid_public(self.path_matpower, self.case_file)
         type(self.backend).set_env_name("BaseTestTopoAction")
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
@@ -1577,7 +1577,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
         self.case_file = self.get_casefile()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, self.case_file)
+            self.backend.load_grid_public(self.path_matpower, self.case_file)
         type(self.backend).set_env_name("TestEnvPerformsCorrectCascadingFailures_env")
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
@@ -1659,7 +1659,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
             )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, case_file)
+            self.backend.load_grid_public(self.path_matpower, case_file)
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
@@ -1694,7 +1694,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
             )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, case_file)
+            self.backend.load_grid_public(self.path_matpower, case_file)
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
         conv, *_ = self.backend.runpf()
@@ -1738,7 +1738,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
             )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, case_file)
+            self.backend.load_grid_public(self.path_matpower, case_file)
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
         conv, *_ = self.backend.runpf()
@@ -1783,7 +1783,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
             )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, case_file)
+            self.backend.load_grid_public(self.path_matpower, case_file)
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
@@ -1825,7 +1825,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
             )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, case_file)
+            self.backend.load_grid_public(self.path_matpower, case_file)
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
@@ -1868,7 +1868,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
             )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self.backend.load_grid(self.path_matpower, case_file)
+            self.backend.load_grid_public(self.path_matpower, case_file)
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
