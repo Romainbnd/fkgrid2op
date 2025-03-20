@@ -592,6 +592,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         self._gen_before_curtailment = None
         self._sum_curtailment_mw = None
         self._sum_curtailment_mw_prev = None
+        self._detached_elements_mw = None
+        self._detached_elements_mw_prev = None
         self._limited_before = 0.0  # TODO curt
 
         # attention budget
@@ -931,6 +933,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         new_obj._gen_before_curtailment = copy.deepcopy(self._gen_before_curtailment)
         new_obj._sum_curtailment_mw = copy.deepcopy(self._sum_curtailment_mw)
         new_obj._sum_curtailment_mw_prev = copy.deepcopy(self._sum_curtailment_mw_prev)
+        new_obj._detached_elements_mw = copy.deepcopy(self._detached_elements_mw)
+        new_obj._detached_elements_mw_prev = copy.deepcopy(self._detached_elements_mw_prev)
         new_obj._limited_before = copy.deepcopy(self._limited_before)
 
         # attention budget
@@ -1450,6 +1454,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         self._gen_before_curtailment = np.zeros(bk_type.n_gen, dtype=dt_float)  # in MW
         self._sum_curtailment_mw = dt_float(0.0)
         self._sum_curtailment_mw_prev = dt_float(0.0)
+        self._detached_elements_mw = dt_float(0.0)
+        self._detached_elements_mw_prev = dt_float(0.0)
         self._reset_curtailment()
 
         # register this is properly initialized
@@ -1609,6 +1615,9 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         self._storage_p_detached[:] = 0.
         
         self._delta_gen_p[:] = 0.
+        
+        self._detached_elements_mw = 0.
+        self._detached_elements_mw_prev = 0.
         
     def _reset_alert(self):
         self._last_alert[:] = False
@@ -2119,6 +2128,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             or np.max(mismatch) >= self._tol_poly
             or np.abs(self._amount_storage) >= self._tol_poly
             or np.abs(self._sum_curtailment_mw) >= self._tol_poly
+            or np.abs(self._detached_elements_mw) >= self._tol_poly
         ):
             except_ = self._compute_dispatch_vect(already_modified_gen, new_p)
             valid = except_ is None
@@ -2241,6 +2251,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             np.zeros(1, dtype=dt_float)
             + self._amount_storage
             - self._sum_curtailment_mw
+            + self._detached_elements_mw
         )
         # gen increase in the chronics
         new_p_th = new_p[gen_participating] + self._actual_dispatch[gen_participating]
@@ -2382,7 +2393,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         """This function is an attempt to give more detailed log by detecting infeasible dispatch"""
         except_ = None
         sum_move = (
-            incr_in_chronics.sum() + self._amount_storage - self._sum_curtailment_mw
+            incr_in_chronics.sum() + self._amount_storage - self._sum_curtailment_mw + self._detached_elements_mw
         )
         avail_down_sum = avail_down.sum()
         avail_up_sum = avail_up.sum()
@@ -3986,6 +3997,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             "_gen_before_curtailment",
             "_sum_curtailment_mw",
             "_sum_curtailment_mw_prev",
+            "_detached_elements_mw",
+            "_detached_elements_mw_prev",
             "_has_attention_budget",
             "_attentiong_budget",
             "_attention_budget_cls",
@@ -4625,6 +4638,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         self._gen_before_curtailment[:] = obs.gen_p_before_curtail
         self._sum_curtailment_mw = obs._env_internal_params["_sum_curtailment_mw"]
         self._sum_curtailment_mw_prev = obs._env_internal_params["_sum_curtailment_mw_prev"]
+        self._detached_elements_mw = obs._env_internal_params["_detached_elements_mw"]
+        self._detached_elements_mw_prev = obs._env_internal_params["_detached_elements_mw"]
 
         # line status
         self._line_status[:] = obs._env_internal_params["_line_status_env"] == 1

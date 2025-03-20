@@ -1392,14 +1392,15 @@ class Backend(GridObjects, ABC):
 
         """
         infos = []
-        disconnected_during_cf = np.full(self.n_line, fill_value=-1, dtype=dt_int)
+        disconnected_during_cf = np.full(type(self).n_line, fill_value=-1, dtype=dt_int)
         conv_ = self._runpf_with_diverging_exception(is_dc)
         if env._no_overflow_disconnection or conv_ is not None:
             return disconnected_during_cf, infos, conv_
 
         # the environment disconnect some powerlines
         init_time_step_overflow = copy.deepcopy(env._timestep_overflow)
-        ts = 0
+        counter_increased = np.zeros_like(init_time_step_overflow, dtype=dt_bool)
+        iter_num = 0
         while True:
             # simulate the cascading failure
             lines_flows = 1.0 * self.get_line_flow()
@@ -1412,7 +1413,10 @@ class Backend(GridObjects, ABC):
             ) & lines_status
 
             # b) deals with soft overflow (disconnect them if lines still connected)
-            init_time_step_overflow[(lines_flows >= thermal_limits) & lines_status] += 1
+            mask_inc = (lines_flows >= thermal_limits) & lines_status
+            mask_inc[counter_increased] = False
+            init_time_step_overflow[mask_inc] += 1
+            counter_increased[mask_inc] = True
             to_disc[
                 (init_time_step_overflow > env._nb_timestep_overflow_allowed)
                 & lines_status
@@ -1423,7 +1427,7 @@ class Backend(GridObjects, ABC):
                 # no powerlines have been disconnected at this time step, 
                 # i stop the computation there
                 break
-            disconnected_during_cf[to_disc] = ts
+            disconnected_during_cf[to_disc] = iter_num
             
             # perform the disconnection action
             for i, el in enumerate(to_disc):
@@ -1437,7 +1441,7 @@ class Backend(GridObjects, ABC):
 
             if conv_ is not None:
                 break
-            ts += 1
+            iter_num += 1
         return disconnected_during_cf, infos, conv_
 
     def storages_info(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
