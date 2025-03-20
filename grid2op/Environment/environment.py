@@ -672,6 +672,7 @@ class Environment(BaseEnv):
             if need_process_backend:
                 # the following line must be called BEFORE "self.backend.assert_grid_correct()" !
                 self.backend.storage_deact_for_backward_comaptibility()
+                self.backend.handle_grid2op_compat()
 
     def _voltage_control(self, agent_action, prod_v_chronics):
         """

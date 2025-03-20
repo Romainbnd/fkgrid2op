@@ -488,6 +488,21 @@ class Backend(GridObjects, ABC):
         self._storage_bus_target[:] = stos_bus
         self._storage_bus_target.flags.writeable = False
         
+    def handle_grid2op_compat(self):
+        """This function will resize the _load_bus_target, _gen_bus_target and _storage_bus_target
+        to match the new size after compatibility mode.
+        """
+        cls = type(self)
+        self._load_bus_target.flags.writeable = True
+        self._load_bus_target.resize(cls.n_load)
+        self._load_bus_target.flags.writeable = False
+        self._gen_bus_target.flags.writeable = True
+        self._gen_bus_target.resize(cls.n_gen)
+        self._gen_bus_target.flags.writeable = False
+        self._storage_bus_target.flags.writeable = True
+        self._storage_bus_target.resize(cls.n_storage)
+        self._storage_bus_target.flags.writeable = False
+        
     @abstractmethod
     def apply_action(self, backend_action: "grid2op.Action._backendAction._BackendAction") -> None:
         """

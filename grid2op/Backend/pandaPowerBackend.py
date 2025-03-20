@@ -1143,6 +1143,7 @@ class PandaPowerBackend(Backend):
                             ):
                                 self.load_v[l_id] = self.prod_v[g_id]
                                 break
+                self.load_v[~self._grid.load["in_service"]] = 0.
             
             # I retrieve the data once for the flows, so has to not re read multiple dataFrame
             self.p_or[:] = self._aux_get_line_info("p_from_mw", "p_hv_mw")
@@ -1197,6 +1198,14 @@ class PandaPowerBackend(Backend):
             if not self._grid.converged:
                 raise pp.powerflow.LoadflowNotConverged("Divergence without specific reason (self._grid.converged is False)")
             self.div_exception = None
+            
+            if is_dc:
+                # pandapower apparently does not set 0 for q in DC...
+                self.prod_q[:] = 0.
+                self.load_q[:] = 0.
+                self.storage_q[:] = 0.
+                self.q_or[:] = 0.
+                self.q_ex[:] = 0.
             return True, None
 
         except pp.powerflow.LoadflowNotConverged as exc_:
@@ -1237,6 +1246,7 @@ class PandaPowerBackend(Backend):
         self.line_status.flags.writeable = True
         self.line_status[:] = False
         self.line_status.flags.writeable = False
+        
     def copy(self) -> "PandaPowerBackend":
         """
         INTERNAL
