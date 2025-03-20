@@ -298,7 +298,7 @@ class Environment(BaseEnv):
             if self._compat_glop_version is not None:
                 type(self.backend).glop_version = self._compat_glop_version
             
-            self.backend.load_grid(
+            self.backend.load_grid_public(
                 self._init_grid_path
             )  # the real powergrid of the environment
             self.backend.load_storage_data(self.get_path_env())
@@ -672,6 +672,7 @@ class Environment(BaseEnv):
             if need_process_backend:
                 # the following line must be called BEFORE "self.backend.assert_grid_correct()" !
                 self.backend.storage_deact_for_backward_comaptibility()
+                self.backend.handle_grid2op_compat()
 
     def _voltage_control(self, agent_action, prod_v_chronics):
         """
@@ -962,7 +963,7 @@ class Environment(BaseEnv):
         self._last_obs = None
         
         # the real powergrid of the environment
-        self.backend.reset(self._init_grid_path)  
+        self.backend.reset_public(self._init_grid_path)  
         
         # self.backend.assert_grid_correct()
         self._previous_conn_state.update_from_other(self._cst_prev_state_at_init)
@@ -1604,7 +1605,7 @@ class Environment(BaseEnv):
             if not self.backend._can_be_copied:
                 raise RuntimeError("Impossible to get the kwargs for this "
                                    "environment, the backend cannot be copied.")
-            res["backend"] = self.backend.copy()
+            res["backend"] = self.backend.copy_public()
             res["backend"]._is_loaded = False  # i can reload a copy of an environment
         
         res["parameters"] = copy.deepcopy(self._parameters)

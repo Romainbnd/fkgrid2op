@@ -188,6 +188,15 @@ class Backend(GridObjects, ABC):
         #: .. versionadded: 1.11.0
         self._missing_detachment_support_info : bool = True
         self.detachment_is_allowed : bool = DEFAULT_ALLOW_DETACHMENT
+        
+        #: .. versionadded: 1.11.0
+        self._load_bus_target = None
+        self._gen_bus_target = None
+        self._storage_bus_target = None
+        
+        #: .. versionadded: 1.11.0
+        # will be used later on in future grid2op version
+        self._prevent_automatic_disconnection = True
     
     def can_handle_more_than_2_busbar(self):
         """
@@ -353,6 +362,47 @@ class Backend(GridObjects, ABC):
         else:
             raise BackendError('Impossible to unset the "is_loaded" status.')
 
+    def load_grid_public(self,
+                         path : Union[os.PathLike, str],
+                         filename : Optional[Union[os.PathLike, str]]=None
+                         ) -> None:
+        """
+        INTERNAL
+
+        .. warning:: /!\\\\ Internal, do not use unless you know what you are doing /!\\\\
+
+            This is called once at the loading of the powergrid.
+
+        .. note::
+            As of grid2op 1.11.0 this function is replacing the function :func:`Backend.load_grid` 
+            for the "public backend API".
+            
+            Avoid calling directly the :func:`Backend.load_grid` directly and use this 
+            one instead.
+        
+        """
+        # first load the grid for the public part
+        self.load_grid(path, filename)
+        
+        # and finish the initialization with a call to this function
+        self._compute_pos_big_topo()
+        
+        self._load_bus_target = np.empty(self.n_load, dtype=dt_int)
+        self._gen_bus_target =  np.empty(self.n_gen, dtype=dt_int)
+        self._storage_bus_target = np.empty(self.n_storage, dtype=dt_int)
+        
+        if self._missing_detachment_support_info:
+            self.detachment_is_allowed = DEFAULT_ALLOW_DETACHMENT
+            type(self).detachment_is_allowed = DEFAULT_ALLOW_DETACHMENT
+            warnings.warn("Your backend implementation has called neither `self.can_handle_detachment()` "
+                          "nor `self.cannot_handle_detachment()`. The detachment feature wille not be available")
+        if self._missing_two_busbars_support_info:
+            self.n_busbar_per_sub = DEFAULT_N_BUSBAR_PER_SUB
+            type(self).n_busbar_per_sub = DEFAULT_N_BUSBAR_PER_SUB
+            warnings.warn("Your backend implementation has called neither `self.can_handle_more_than_2_busbar()` "
+                          f"nor `self.cannot_handle_more_than_2_busbar()`. Setting at most {DEFAULT_N_BUSBAR_PER_SUB} "
+                          "(default) independant busbars per substation.")
+        
     @abstractmethod
     def load_grid(self,
                   path : Union[os.PathLike, str],
@@ -365,6 +415,7 @@ class Backend(GridObjects, ABC):
             This is called once at the loading of the powergrid.
 
         Load the powergrid.
+        
         It should first define self._grid.
 
         And then fill all the helpers used by the backend eg. all the attributes of :class:`Space.GridObjects`.
@@ -383,8 +434,77 @@ class Backend(GridObjects, ABC):
         """
         pass
 
+    def apply_action_public(self, backend_action: Union["grid2op.Action._backendAction._BackendAction", None]) -> None:
+        """
+        INTERNAL
+
+        .. warning:: /!\\\\ Internal, do not use unless you know what you are doing /!\\\\
+
+        .. note::
+            As of grid2op 1.11.0 this function is replacing the function :func:`Backend.apply_action` 
+            for the "public backend API".
+            
+            Avoid calling directly the :func:`Backend.apply_action` directly and use this 
+            one instead.
+        
+        """
+        if backend_action is None:
+            return
+        
+        # "compile" the grid2op backend action
+        (
+            active_bus,
+            (prod_p, prod_v, load_p, load_q, storage),
+            topo__,
+            shunts__,
+        ) = backend_action()
+        
+        # store the states
+        loads_bus = backend_action.get_loads_bus()
+        self._load_bus_target.flags.writeable = True
+        self._load_bus_target[loads_bus.changed] = loads_bus.values[loads_bus.changed]
+        self._load_bus_target.flags.writeable = False
+        
+        gens_bus = backend_action.get_gens_bus()
+        self._gen_bus_target.flags.writeable = True
+        self._gen_bus_target[gens_bus.changed] = gens_bus.values[gens_bus.changed]
+        self._gen_bus_target.flags.writeable = False
+        
+        stos_bus = backend_action.get_storages_bus()
+        self._storage_bus_target.flags.writeable = True
+        self._storage_bus_target[stos_bus.changed] = stos_bus.values[stos_bus.changed]
+        self._storage_bus_target.flags.writeable = False
+        # TODO shunts
+        return self.apply_action(backend_action)
+        
+    def update_bus_target_after_pf(self, loads_bus, gens_bus, stos_bus):
+        self._load_bus_target.flags.writeable = True
+        self._load_bus_target[:] = loads_bus
+        self._load_bus_target.flags.writeable = False
+        self._gen_bus_target.flags.writeable = True
+        self._gen_bus_target[:] = gens_bus
+        self._gen_bus_target.flags.writeable = False
+        self._storage_bus_target.flags.writeable = True
+        self._storage_bus_target[:] = stos_bus
+        self._storage_bus_target.flags.writeable = False
+        
+    def handle_grid2op_compat(self):
+        """This function will resize the _load_bus_target, _gen_bus_target and _storage_bus_target
+        to match the new size after compatibility mode.
+        """
+        cls = type(self)
+        self._load_bus_target.flags.writeable = True
+        self._load_bus_target.resize(cls.n_load)
+        self._load_bus_target.flags.writeable = False
+        self._gen_bus_target.flags.writeable = True
+        self._gen_bus_target.resize(cls.n_gen)
+        self._gen_bus_target.flags.writeable = False
+        self._storage_bus_target.flags.writeable = True
+        self._storage_bus_target.resize(cls.n_storage)
+        self._storage_bus_target.flags.writeable = False
+        
     @abstractmethod
-    def apply_action(self, backendAction: Union["grid2op.Action._backendAction._BackendAction", None]) -> None:
+    def apply_action(self, backend_action: "grid2op.Action._backendAction._BackendAction") -> None:
         """
         INTERNAL
 
@@ -395,12 +515,16 @@ class Backend(GridObjects, ABC):
 
             This is one of the core function if you want to code a backend.
 
-        Modify the powergrid with the action given by an agent or by the envir.
+        .. warning::
+            As of grid2op 1.11.0 this function is not part of the public API and is not called directly
+            by the environment. This is called by the function :func:`Backend.apply_action_public`.
+            
+            From this grid2Op version onward, the input parameters `backend_action` is always not None.
+            Before that, it could be None.
+
+        Modify the powergrid with the action given by an agent or by the environment.
         For the L2RPN project, this action is mainly for topology if it has been sent by the agent.
         Or it can also affect production and loads, if the action is made by the environment.
-
-        The help of :func:`grid2op.BaseAction.BaseAction.__call__` or the code in BaseActiontion.py file give more information about
-        the implementation of this method.
 
         :param backendAction: the action to be implemented on the powergrid.
         :type action: :class:`grid2op.Action._BackendAction._BackendAction`
@@ -623,6 +747,30 @@ class Backend(GridObjects, ABC):
         """
         pass
 
+    def reset_public(self,
+                     path : Union[os.PathLike, str],
+                     grid_filename : Optional[Union[os.PathLike, str]]=None) -> None:
+        """
+        INTERNAL
+
+        .. warning:: /!\\\\ Internal, do not use unless you know what you are doing /!\\\\
+
+            This is done in the `env.reset()` method and should be performed otherwise.
+            
+        .. note::
+            As of grid2op 1.11.0 this function is replacing the function :func:`Backend.reset` 
+            for the "public backend API".
+            
+            Avoid calling directly the :func:`Backend.reset` directly and use this 
+            one instead.
+        """
+        # reset the self._grid and others
+        self.reset(path, grid_filename)
+        
+        # reset the other attributes
+        self.comp_time = 0.0
+        self.update_bus_target_after_pf(-1, -1, -1)
+        
     def reset(self,
               path : Union[os.PathLike, str],
               grid_filename : Optional[Union[os.PathLike, str]]=None) -> None:
@@ -633,13 +781,75 @@ class Backend(GridObjects, ABC):
 
             This is done in the `env.reset()` method and should be performed otherwise.
 
+        .. warning::
+            As of grid2op 1.11.0 this function is not part of the public API and is not called directly
+            by the environment. This is called by the function :func:`Backend.reset_public`
+
         Reload the power grid.
         For backwards compatibility this method calls `Backend.load_grid`.
         But it is encouraged to overload it in the subclasses.
         """
-        self.comp_time = 0.0
         self.load_grid(path, filename=grid_filename)
 
+    def copy_public(self) -> Self:
+        """
+        INTERNAL
+
+        .. warning:: /!\\\\ Internal, do not use unless you know what you are doing /!\\\\
+        
+        This function returns a copy of the backend.
+            
+        .. note::
+            As of grid2op 1.11.0 this function is replacing the function :func:`Backend.copy` 
+            for the "public backend API".
+            
+            Avoid calling directly the :func:`Backend.copy` directly and use this 
+            one instead.
+            
+        """
+        
+        if not self._can_be_copied:
+            raise BaseException("This backend cannot be copied")
+        
+        # copy all the inherited attribute(s) (including self._grid)
+        res = self.copy()
+        
+        # if it's set to true, it returns all intermediate _grid states. This can slow down the computation!
+        res.detailed_infos_for_cascading_failures = self.detailed_infos_for_cascading_failures
+        res.supported_grid_format = copy.deepcopy(self.supported_grid_format)
+        
+        # the power _grid manipulated. One powergrid per backend.
+        # self._grid : Any = None  # should be handled in self.copy() 
+
+        # thermal limit setting, in ampere, at the same "side" of the powerline than self.get_line_overflow
+        res.thermal_limit_a = copy.deepcopy(self.thermal_limit_a)
+
+        # for the shunt (only if supported)
+        res._sh_vnkv = copy.deepcopy(self._sh_vnkv)
+
+        res.comp_time = copy.deepcopy(self.comp_time)
+        res.can_output_theta = copy.deepcopy(self.comp_time)
+
+        # to prevent the use of the same backend instance in different environment.
+        res._is_loaded = copy.deepcopy(self.comp_time)
+
+        res._can_be_copied = copy.deepcopy(self._can_be_copied)
+        
+        res._my_kwargs = {"detailed_infos_for_cascading_failures": self.detailed_infos_for_cascading_failures,
+                          "can_be_copied": self._can_be_copied}
+        for k, v in self._my_kwargs.items():
+            res._my_kwargs[k] = v
+            
+        res._missing_two_busbars_support_info = copy.deepcopy(self._missing_two_busbars_support_info)
+        res.n_busbar_per_sub = copy.deepcopy(self.n_busbar_per_sub)
+        res._missing_detachment_support_info = copy.deepcopy(self._missing_detachment_support_info)
+        res.detachment_is_allowed = copy.deepcopy(self.detachment_is_allowed)
+        res._load_bus_target = copy.deepcopy(self._load_bus_target)
+        res._gen_bus_target = copy.deepcopy(self._gen_bus_target)
+        res._storage_bus_target = copy.deepcopy(self._storage_bus_target)
+        res._prevent_automatic_disconnection = copy.deepcopy(self._prevent_automatic_disconnection)
+        return res
+    
     def copy(self) -> Self:
         """
         INTERNAL
@@ -658,7 +868,11 @@ class Backend(GridObjects, ABC):
             example) :func:`grid2op.Observation.BaseObservation.simulate` nor
             the :class:`grid2op.simulator.Simulator` for example.
 
-        Performs a deep copy of the backend.
+        .. warning::
+            As of grid2op 1.11.0 this function is not part of the public API and is not called directly
+            by the environment. This is called by the function :func:`Backend.copy_public`
+            
+        Performs a deep copy of the "attributed" of the inherited class, including the `self._grid`
 
         In the default implementation we explicitly called the deepcopy operator on `self._grid` to make the
         error message more explicit in case there is a problem with this part.
@@ -766,7 +980,7 @@ class Backend(GridObjects, ABC):
         p_or, q_or, v_or, a_or = self.lines_or_info()
         return a_or
 
-    def set_thermal_limit(self, limits : Union[np.ndarray, Dict["str", float]]) -> None:
+    def set_thermal_limit(self, limits : Union[np.ndarray, Dict[str, float]]) -> None:
         """
         INTERNAL
 
@@ -794,6 +1008,8 @@ class Backend(GridObjects, ABC):
               - as key the powerline names (not all names are mandatory, in that case only the powerlines with the name
                 in this dictionnary will be modified)
               - as value the new thermal limit (should be a strictly positive float).
+            
+            In all cases, limits are expected to be given in A (not in kA)
 
         """
         if isinstance(limits, np.ndarray):
@@ -891,7 +1107,7 @@ class Backend(GridObjects, ABC):
         For assumption about the order of the powerline flows return in this vector, see the help of the
         :func:`Backend.get_line_status` method.
 
-        :return: An array giving the thermal limit of the powerlines.
+        :return: An array giving the thermal limit of the powerlines (in A).
         :rtype: np.array, dtype:float
         """
         return self.thermal_limit_a
@@ -972,11 +1188,11 @@ class Backend(GridObjects, ABC):
         Returns
         -------
         shunt_p: ``numpy.ndarray``
-            For each shunt, the active power it withdraw at the bus to which it is connected.
+            For each shunt, the active power it withdraw at the bus to which it is connected (in MW)
         shunt_q: ``numpy.ndarray``
-            For each shunt, the reactive power it withdraw at the bus to which it is connected.
+            For each shunt, the reactive power it withdraw at the bus to which it is connected (in MVAr)
         shunt_v: ``numpy.ndarray``
-            For each shunt, the voltage magnitude of the bus to which it is connected.
+            For each shunt, the voltage magnitude of the bus to which it is connected (in kV)
         shunt_bus: ``numpy.ndarray``
             For each shunt, the bus id to which it is connected.
         """
@@ -995,15 +1211,20 @@ class Backend(GridObjects, ABC):
         Returns
         -------
         line_or_theta: ``numpy.ndarray``
-            For each origin side of powerline, gives the voltage angle
+            For each origin side of powerline, gives the voltage angle (in deg) of the bus to
+            which each "origin" side is connected
         line_ex_theta: ``numpy.ndarray``
-            For each extremity side of powerline, gives the voltage angle
+            For each extremity side of powerline, gives the voltage angle (in deg) of the bus to
+            which each "ext" side is connected
         load_theta: ``numpy.ndarray``
-            Gives the voltage angle to the bus at which each load is connected
+            Gives the voltage angle to the bus at which each load is connected (in deg) of the bus to
+            which each load is connected
         gen_theta: ``numpy.ndarray``
-            Gives the voltage angle to the bus at which each generator is connected
+            Gives the voltage angle to the bus at which each generator is connected (in deg) of the bus to
+            which each generator is connected
         storage_theta: ``numpy.ndarray``
-            Gives the voltage angle to the bus at which each storage unit is connected
+            Gives the voltage angle to the bus at which each storage unit is connected  (in deg) of the bus to
+            which each storage unit is connected
         """
         raise NotImplementedError(
             "Your backend does not support the retrieval of the voltage angle theta."
@@ -1060,7 +1281,7 @@ class Backend(GridObjects, ABC):
         action.update({"set_line_status": [(id_, -1)]})
         bk_act = my_cls.my_bk_act_class()
         bk_act += action
-        self.apply_action(bk_act)
+        self.apply_action_public(bk_act)
 
     def _runpf_with_diverging_exception(self, is_dc : bool) -> Optional[Exception]:
         """
@@ -1112,7 +1333,21 @@ class Backend(GridObjects, ABC):
                     raise BackendError((cls.ERR_DETACHMENT.format("storages", "storages", sto_maybe_error.nonzero()[0]) + 
                                         " NB storage units are allowed to be disconnected even if "
                                         "`detachment_is_allowed` is False but only if the don't produce active power."))
-                
+            
+            # additional check: if the backend detach some things incorrectly
+            if cls.detachment_is_allowed:
+                # if the backend automatically disconnect things, I need to catch them
+                # with grid2op 1.11.0 it is not feasible
+                if self._prevent_automatic_disconnection and ((self._load_bus_target != -1) & (load_buses == -1)).any():
+                    issue = (self._load_bus_target != -1) & (load_buses == -1)
+                    raise BackendError(f"Your backend apparently disconnected load(s) id {issue.nonzero()[0]}, "
+                                       f"named {type(self).name_load[issue.nonzero()[0]]}")
+                if self._prevent_automatic_disconnection and ((self._gen_bus_target != -1) & (gen_buses == -1)).any():
+                    issue = (self._gen_bus_target != -1) & (gen_buses == -1)
+                    raise BackendError(f"Your backend apparently disconnected gens(s) id {issue.nonzero()[0]}, "
+                                       f"named {type(self).name_gen[issue.nonzero()[0]]}")
+                # TODO storage units
+                    
         except Grid2OpException as exc_:
             exc_me = exc_
             
@@ -1289,7 +1524,7 @@ class Backend(GridObjects, ABC):
             sum of injected reactive power at each buses. It is given in form of a matrix, with number of substations as
             row, and number of columns equal to the maximum number of buses for a substation (MVAr)
         diff_v_bus: ``numpy.ndarray`` (2d array)
-            difference between maximum voltage and minimum voltage (computed for each elements)
+            difference between maximum voltage and minimum voltage (in kV) (computed for each elements)
             at each bus. It is an array of two dimension:
 
             - first dimension represents the the substation (between 1 and self.n_sub)
@@ -1888,7 +2123,7 @@ class Backend(GridObjects, ABC):
         if type(self)._complete_action_class is None:
             # some bug in multiprocessing, this was not set
             # sub processes
-            from grid2op.Action.completeAction import CompleteAction
+            from grid2op.Action import CompleteAction
             type(self)._complete_action_class = CompleteAction.init_grid(type(self))
         set_me = self._complete_action_class()
         dict_ = {
@@ -1993,7 +2228,7 @@ class Backend(GridObjects, ABC):
             warnings.warn("Backend supports shunt but not the observation. This behaviour is non standard.")
         act.update(dict_)
         backend_action += act
-        self.apply_action(backend_action)
+        self.apply_action_public(backend_action)
         backend_action.reset()  # already processed by the backend
         return backend_action
 

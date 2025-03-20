@@ -254,7 +254,7 @@ class PandaPowerBackend(Backend):
                     warnings.warn(
                         f'There are "{el_nm}" in the pandapower grid. These '
                         f"elements are not modeled on grid2op side (the environment will "
-                        f"work, but you won't be able to modify them)."
+                        f"work, but you won't be able to modify them with 'pure grid2op' API)."
                     )
 
     def get_theta(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -859,7 +859,7 @@ class PandaPowerBackend(Backend):
         """
         return self._big_topo_to_obj[id_big_topo]
 
-    def apply_action(self, backendAction: Union["grid2op.Action._backendAction._BackendAction", None]) -> None:
+    def apply_action(self, backend_action: "grid2op.Action._backendAction._BackendAction") -> None:
         """
         INTERNAL
 
@@ -867,8 +867,6 @@ class PandaPowerBackend(Backend):
 
         Specific implementation of the method to apply an action modifying a powergrid in the pandapower format.
         """
-        if backendAction is None:
-            return
         cls = type(self)
         
         (
@@ -876,7 +874,7 @@ class PandaPowerBackend(Backend):
             (prod_p, prod_v, load_p, load_q, storage),
             topo__,
             shunts__,
-        ) = backendAction()
+        ) = backend_action()
         
         # handle bus status
         self._grid.bus["in_service"] = pd.Series(data=active_bus.T.reshape(-1),
@@ -913,7 +911,7 @@ class PandaPowerBackend(Backend):
             if (storage.changed).any():
                 tmp_stor_p.iloc[storage.changed] = storage.values[storage.changed]
             # topology of the storage
-            stor_bus = backendAction.get_storages_bus()
+            stor_bus = backend_action.get_storages_bus()
             new_bus_num = dt_int(1) * self._grid.storage["bus"].values
             new_bus_id = stor_bus.values[stor_bus.changed]
             new_bus_num[stor_bus.changed] = cls.local_bus_to_global(new_bus_id, cls.storage_to_subid[stor_bus.changed])
@@ -924,7 +922,7 @@ class PandaPowerBackend(Backend):
             self._grid.storage.loc[stor_bus.changed & ~deactivated, "in_service"] = True
             self._grid.storage["bus"] = new_bus_num
         
-        if type(backendAction).shunts_data_available:
+        if type(backend_action).shunts_data_available:
             shunt_p, shunt_q, shunt_bus = shunts__
 
             if (shunt_p.changed).any():
@@ -1145,6 +1143,7 @@ class PandaPowerBackend(Backend):
                             ):
                                 self.load_v[l_id] = self.prod_v[g_id]
                                 break
+                self.load_v[~self._grid.load["in_service"]] = 0.
             
             # I retrieve the data once for the flows, so has to not re read multiple dataFrame
             self.p_or[:] = self._aux_get_line_info("p_from_mw", "p_hv_mw")
@@ -1199,6 +1198,14 @@ class PandaPowerBackend(Backend):
             if not self._grid.converged:
                 raise pp.powerflow.LoadflowNotConverged("Divergence without specific reason (self._grid.converged is False)")
             self.div_exception = None
+            
+            if is_dc:
+                # pandapower apparently does not set 0 for q in DC...
+                self.prod_q[:] = 0.
+                self.load_q[:] = 0.
+                self.storage_q[:] = 0.
+                self.q_or[:] = 0.
+                self.q_ex[:] = 0.
             return True, None
 
         except pp.powerflow.LoadflowNotConverged as exc_:
@@ -1239,6 +1246,7 @@ class PandaPowerBackend(Backend):
         self.line_status.flags.writeable = True
         self.line_status[:] = False
         self.line_status.flags.writeable = False
+        
     def copy(self) -> "PandaPowerBackend":
         """
         INTERNAL

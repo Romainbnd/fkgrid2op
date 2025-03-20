@@ -137,7 +137,7 @@ class GridObjects:
         - method 4 (recommended): use the :func:`GridObjects.topo_vect_element`
 
     For a given powergrid, this object should be initialized once in the :class:`grid2op.Backend.Backend` when
-    the first call to :func:`grid2op.Backend.Backend.load_grid` is performed. In particular the following attributes
+    the first call to :func:`grid2op.Backend.Backend.load_grid_public` is performed. In particular the following attributes
     must necessarily be defined (see above for a detailed description of some of the attributes):
 
     - :attr:`GridObjects.name_load`

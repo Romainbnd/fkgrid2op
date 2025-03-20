@@ -657,7 +657,6 @@ class TestReconnectionsLegality(unittest.TestCase):
         # this is not supposed to reconnect it either (cooldown)
         assert obs.time_before_cooldown_line[l_id] == 2
         obs, reward, done, info = env.step(set_or_1_act)
-        # pdb.set_trace()
         # assert info["is_illegal"]
         assert env.backend._grid.line.iloc[l_id]["in_service"] == False
         assert obs.rho[l_id] == 0.0

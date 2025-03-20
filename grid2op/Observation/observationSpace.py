@@ -213,7 +213,7 @@ class ObservationSpace(SerializableObservationSpace):
         observation_bk_class_used = observation_bk_class.init_grid(type(env.backend), _local_dir_cls=_local_dir_cls)
         self._backend_obs = observation_bk_class_used(**observation_bk_kwargs)   
         self._backend_obs.set_env_name(env.name)
-        self._backend_obs.load_grid(path_grid_for)
+        self._backend_obs.load_grid_public(path_grid_for)
         self._backend_obs.assert_grid_correct()
         self._backend_obs.runpf()
         self._backend_obs.assert_grid_correct_after_powerflow()
@@ -245,7 +245,7 @@ class ObservationSpace(SerializableObservationSpace):
             # case where I can copy the backend for the 'simulate' and I don't need to build 
             # it (uses same class and same grid)
             try:
-                self._backend_obs = env.backend.copy()
+                self._backend_obs = env.backend.copy_public()
             except Exception as exc_:
                 self._backend_obs = None
                 self.logger.warn(f"Backend cannot be copied, simulate feature will "
