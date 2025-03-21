@@ -489,8 +489,73 @@ class TestSheddingActionsNoShedding(unittest.TestCase):
         
         obs, reward, done, info = self.env.step(self.env.action_space({"set_bus": {"storages_id": [(0, -1)]}, "set_storage": [(0, 1.)]}))
         assert done
-        
 
+
+class TestDetachmentRedisp(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        p = Parameters()
+        p.MAX_SUB_CHANGED = 999999
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            self.env = grid2op.make("educ_case14_storage",
+                                    param=p,
+                                    action_class=CompleteAction,
+                                    allow_detachment=True,
+                                    test=True,
+                                    _add_to_name=type(self).__name__)
+            type(self.env).gen_max_ramp_down = type(self.env).gen_pmax
+            type(self.env).gen_max_ramp_up = type(self.env).gen_pmax
+        obs = self.env.reset(seed=0, options={"time serie id": 0}) # Reproducibility
+        return super().setUp()
+    
+    def tearDown(self):
+        self.env.close()
+        return super().tearDown()
+    
+    def test_no_redisp_no_detach(self):
+        # just a basic test to get the values not modified
+        obs, reward, done, info = self.env.step(self.env.action_space())
+        assert abs(obs.gen_p[0] - 83.6) <= 1e-6, f'{obs.gen_p[0]} vs 83.6'
+        obs, reward, done, info = self.env.step(self.env.action_space())
+        assert abs(obs.gen_p[0] - 83.4) <= 1e-6, f'{obs.gen_p[0]} vs 83.4'
+        obs, reward, done, info = self.env.step(self.env.action_space())
+        assert abs(obs.gen_p[0] - 83.9) <= 1e-6, f'{obs.gen_p[0]} vs 83.9'
+        
+    def test_detached_no_redisp_0(self):
+        # first test: apply redispatch, then disco
+        act = self.env.action_space({"redispatch": [(0, 1.)]})
+        obs, reward, done, info = self.env.step(act)
+        assert not done
+        assert np.abs(obs.actual_dispatch[0] - 1.) <= 1e-8, f"{obs.actual_dispatch[0]} vs 1."
+        assert np.abs(obs.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs.actual_dispatch.sum()} vs 0."
+        assert abs(obs.gen_p_delta.sum() - 0.) <= 1.  # gen_p delta should be bellow 1 MW
+        
+        act2 = self.env.action_space({"set_bus": {"generators_id": [(0, -1)]}})
+        obs2, r2, done2, info2 = self.env.step(act2)
+        assert not done2, info2["exception"]
+        assert np.abs(obs2.gen_p[0] - 0.) <= 1e-8, f"{obs2.gen_p[0]} vs 0."
+        assert np.abs(obs2.actual_dispatch[0]) <= 1e-8, f"{obs2.actual_dispatch[0]} vs 0."
+        assert np.abs(obs2.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs2.actual_dispatch.sum()} vs 0."
+        assert abs(obs2.gen_p_delta.sum() - 0.) <= 1.  # gen_p delta should be bellow 1 MW
+        
+    def test_detached_no_redisp_1(self):
+        # second test: apply disconnect, then redispatch
+        act_redisp = self.env.action_space({"redispatch": [(0, 1.)]})
+        act_disc = self.env.action_space({"set_bus": {"generators_id": [(0, -1)]}})
+        
+        obs, reward, done, info = self.env.step(act_disc)
+        assert not done
+        assert np.abs(obs.actual_dispatch[0] - 0.) <= 1e-8, f"{obs.actual_dispatch[0]} vs 0."
+        assert np.abs(obs.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs.actual_dispatch.sum()} vs 0."
+        assert np.abs(obs.gen_p[0] - 0.) <= 1e-8, f"{obs.gen_p[0]} vs 0."
+        
+        obs2, r2, done2, info2 = self.env.step(act_redisp)
+        assert not done2, info2["exception"]
+        assert np.abs(obs2.actual_dispatch[0]) <= 1e-8, f"{obs2.actual_dispatch[0]} vs 0."
+        assert np.abs(obs2.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs2.actual_dispatch.sum()} vs 0."
+        
+        
 # TODO with the env parameters STOP_EP_IF_GEN_BREAK_CONSTRAINTS and ENV_DOES_REDISPATCHING
 # TODO when something is "re attached" on the grid
 # TODO check gen detached does not participate in redisp

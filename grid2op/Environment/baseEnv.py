@@ -2151,6 +2151,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             | (self._target_dispatch != self._actual_dispatch)
         )
         gen_participating[~self.gen_redispatchable] = False
+        if type(self).detachment_is_allowed:
+            gen_participating[self._backend_action.get_gen_detached()] = False
         incr_in_chronics = new_p - (
             self._gen_activeprod_t_redisp - self._actual_dispatch
         )
@@ -2178,6 +2180,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
                 and self._parameters.ALLOW_DISPATCH_GEN_SWITCH_OFF
             ):
                 gen_participating_tmp = self.gen_redispatchable
+                if type(self).detachment_is_allowed:
+                    gen_participating_tmp[self._backend_action.get_gen_detached()] = False
                 p_min_down_tmp = (
                     self.gen_pmin[gen_participating_tmp]
                     - self._gen_activeprod_t_redisp[gen_participating_tmp]
@@ -2212,6 +2216,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             self._target_dispatch[gen_participating]
             - self._actual_dispatch[gen_participating]
         )
+        
         already_modified_gen_me = already_modified_gen[gen_participating]
         target_vals_me = target_vals[already_modified_gen_me]
         nb_dispatchable = gen_participating.sum()
@@ -2253,6 +2258,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             - self._sum_curtailment_mw
             + self._detached_elements_mw
         )
+        
         # gen increase in the chronics
         new_p_th = new_p[gen_participating] + self._actual_dispatch[gen_participating]
 
@@ -3404,6 +3410,21 @@ class BaseEnv(GridObjects, RandomObject, ABC):
                 )
         return detailed_info, has_error
 
+    def _aux_apply_detachment(self, new_p, new_p_th):
+        gen_detached_user = self._backend_action.get_gen_detached()
+        load_detached_user = self._backend_action.get_load_detached()
+        # handle gen
+        mw_gen_lost_this = new_p[gen_detached_user].sum() + self._actual_dispatch[gen_detached_user].sum()
+        # handle loads
+        self._detached_elements_mw = -mw_gen_lost_this - self._detached_elements_mw_prev
+        self._detached_elements_mw_prev = self._detached_elements_mw
+        
+        # and now modifies the vectors
+        new_p[gen_detached_user] = 0.
+        new_p_th[gen_detached_user] = 0.
+        self._actual_dispatch[gen_detached_user] = 0.
+        return new_p, new_p_th
+        
     def step(self, action: BaseAction) -> Tuple[BaseObservation,
                                                 float,
                                                 bool,
@@ -3619,6 +3640,10 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             # it is feasible)
             self._gen_before_curtailment[cls.gen_renewable] = new_p[cls.gen_renewable]
             gen_curtailed = self._aux_handle_curtailment_without_limit(action, new_p)
+            
+            # TODO detachment
+            self._aux_update_backend_action(action, action_storage_power, init_disp)
+            new_p, new_p_th = self._aux_apply_detachment(new_p, new_p_th)
 
             beg__redisp = time.perf_counter()
             if (cls.redispatching_unit_commitment_availble or cls.n_storage > 0.0) and self._parameters.ENV_DOES_REDISPATCHING:
@@ -3633,7 +3658,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             self._time_redisp += time.perf_counter() - beg__redisp
             
             if not is_done:
-                self._aux_update_backend_action(action, action_storage_power, init_disp)
+                # TODO ?
+                # self._aux_update_backend_action(action, action_storage_power, init_disp)
 
                 # now get the new generator voltage setpoint
                 voltage_control_act = self._voltage_control(action, prod_v_chronics)
