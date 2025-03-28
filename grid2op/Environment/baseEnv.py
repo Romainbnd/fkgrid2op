@@ -3178,6 +3178,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             except_.append(except_tmp)
         else:
             res_action = action
+            self._backend_action.set_redispatch(self._actual_dispatch)
         return res_action, is_illegal_redisp, is_illegal_reco, is_done
 
     def _aux_update_backend_action(self,
@@ -3188,14 +3189,13 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # the environment must make sure it's a zero-sum action.
         # same kind of limit for the storage
         res_exc_ = None
-        action._redispatch[:] = 0.0
+        action._redispatch[:] = 0.0  # redispatch is added in _aux_apply_redisp a bit later in the code
         action._storage_power[:] = self._storage_power
         self._backend_action += action
         action._storage_power[:] = action_storage_power
         action._redispatch[:] = init_disp
         # TODO storage: check the original action, even when replaced by do nothing is not modified
         self._backend_action += self._env_modification
-        self._backend_action.set_redispatch(self._actual_dispatch)
         return res_exc_
 
     def _update_alert_properties(self, action, lines_attacked, subs_attacked):
@@ -3646,7 +3646,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             new_p, new_p_th = self._aux_apply_detachment(new_p, new_p_th)
 
             beg__redisp = time.perf_counter()
-            if (cls.redispatching_unit_commitment_availble or cls.n_storage > 0.0) and self._parameters.ENV_DOES_REDISPATCHING:
+            if (cls.redispatching_unit_commitment_availble or cls.n_storage > 0) and self._parameters.ENV_DOES_REDISPATCHING:
                 # this computes the "optimal" redispatching
                 # and it is also in this function that the limiting of the curtailment / storage actions
                 # is perform to make the state "feasible"
