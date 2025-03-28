@@ -1356,7 +1356,8 @@ class Backend(GridObjects, ABC):
                     raise BackendError((cls.ERR_DETACHMENT.format("storages", "storages", sto_maybe_error.nonzero()[0]) + 
                                         " NB storage units are allowed to be disconnected even if "
                                         "`detachment_is_allowed` is False but only if the don't produce / absorb active power."))
-            
+            else:
+                sto_maybe_error = None
             # additional check: if the backend detach some things incorrectly
             if cls.detachment_is_allowed:
                 # if the backend automatically disconnect things, I need to catch them
@@ -1375,7 +1376,7 @@ class Backend(GridObjects, ABC):
     def _catch_automatic_disconnection(self,
                                        load_disco: np.ndarray,
                                        gen_disco: np.ndarray,
-                                       sto_maybe_error: np.ndarray):
+                                       sto_maybe_error: Optional[np.ndarray]):
         """
         INTERNAL
 
@@ -1388,7 +1389,7 @@ class Backend(GridObjects, ABC):
         Args:
             load_disco (np.ndarray): _description_
             gen_disco (np.ndarray): _description_
-            sto_maybe_error (np.ndarray): _description_
+            sto_maybe_error (Optional[np.ndarray]): _description_
             
         """
         if not self._prevent_automatic_disconnection:
