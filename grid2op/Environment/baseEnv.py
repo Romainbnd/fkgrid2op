@@ -3178,13 +3178,14 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             except_.append(except_tmp)
         else:
             res_action = action
-            self._backend_action.set_redispatch(self._actual_dispatch)
+            # self._backend_action.set_redispatch(self._actual_dispatch)
         return res_action, is_illegal_redisp, is_illegal_reco, is_done
 
     def _aux_update_backend_action(self,
                                    action: BaseAction,
                                    action_storage_power: np.ndarray,
                                    init_disp: np.ndarray):
+        """updates the backend action with the agent action"""
         # make sure the dispatching action is not implemented "as is" by the backend.
         # the environment must make sure it's a zero-sum action.
         # same kind of limit for the storage
@@ -3194,8 +3195,6 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         self._backend_action += action
         action._storage_power[:] = action_storage_power
         action._redispatch[:] = init_disp
-        # TODO storage: check the original action, even when replaced by do nothing is not modified
-        self._backend_action += self._env_modification
         return res_exc_
 
     def _update_alert_properties(self, action, lines_attacked, subs_attacked):
@@ -3660,6 +3659,10 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             if not is_done:
                 # TODO ?
                 # self._aux_update_backend_action(action, action_storage_power, init_disp)
+                
+                # TODO storage: check the original action, even when replaced by do nothing is not modified
+                self._backend_action += self._env_modification
+                self._backend_action.set_redispatch(self._actual_dispatch)
 
                 # now get the new generator voltage setpoint
                 voltage_control_act = self._voltage_control(action, prod_v_chronics)
