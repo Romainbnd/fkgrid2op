@@ -3413,7 +3413,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         gen_detached_user = self._backend_action.get_gen_detached()
         load_detached_user = self._backend_action.get_load_detached()
         # handle gen
-        mw_gen_lost_this = new_p[gen_detached_user].sum() + self._actual_dispatch[gen_detached_user].sum()
+        mw_gen_lost_this = new_p[gen_detached_user].sum() # + self._actual_dispatch[gen_detached_user].sum()
         # handle loads
         self._detached_elements_mw = -mw_gen_lost_this - self._detached_elements_mw_prev
         self._detached_elements_mw_prev = self._detached_elements_mw
