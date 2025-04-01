@@ -39,7 +39,7 @@ jobs:
             - run:
                command: |
                    source venv_test/bin/activate
-                   pip install -U pip setuptools wheel
+                   pip install -U pip setuptools wheel coverage
             - run:
                 command: |
                   source venv_test/bin/activate
@@ -57,7 +57,9 @@ jobs:
                   source venv_test/bin/activate
                   cd grid2op/tests/
                   export _GRID2OP_FORCE_TEST=1
-                  python3 -m unittest -v $(cat /tmp/tests_run)
+                  coverage run --parallel-mode -m unittest -v $(cat /tmp/tests_run)
+            - store_artifacts:
+                path: .coverage*
                   
     install36:
         executor: python36
