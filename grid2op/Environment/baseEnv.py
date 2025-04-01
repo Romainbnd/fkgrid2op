@@ -13,7 +13,7 @@ import time
 import copy
 import os
 import json
-from typing import Optional, Tuple, Union, Dict, Any, Literal
+from typing import List, Optional, Tuple, Union, Dict, Any, Literal
 import importlib
 import sys
 
@@ -3096,7 +3096,13 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             self._backend_action += attack
         return lines_attacked, subs_attacked, attack_duration
 
-    def _aux_apply_redisp(self, action, new_p, new_p_th, gen_curtailed, except_, powerline_status):
+    def _aux_apply_redisp(self,
+                          action: BaseAction,
+                          new_p: np.ndarray,
+                          new_p_th: np.ndarray,
+                          gen_curtailed: np.ndarray,
+                          except_: List[Exception],
+                          powerline_status):
         is_illegal_redisp = False
         is_done = False
         is_illegal_reco = False
@@ -3190,11 +3196,22 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # the environment must make sure it's a zero-sum action.
         # same kind of limit for the storage
         res_exc_ = None
+        # cancel the tags
+        tag_redisp = action._modif_redispatch
+        tag_storage = action._modif_storage
+        action._modif_redispatch = False
+        action._modif_storage = False
+        # cancel the values
         action._redispatch[:] = 0.0  # redispatch is added in _aux_apply_redisp a bit later in the code
         action._storage_power[:] = self._storage_power
+        # add the action
         self._backend_action += action
+        # put initial value
         action._storage_power[:] = action_storage_power
         action._redispatch[:] = init_disp
+        # put back the tags
+        action._modif_redispatch = tag_redisp
+        action._modif_storage = tag_storage
         return res_exc_
 
     def _update_alert_properties(self, action, lines_attacked, subs_attacked):
