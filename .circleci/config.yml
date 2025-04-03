@@ -65,7 +65,7 @@ jobs:
                   ls -lah /Grid2Op/grid2op/tests/.coverage.*
 
             - store_artifacts:
-                path: "/Grid2Op/grid2op/tests/.coverage*"
+                path: "/Grid2Op/grid2op/tests/test_Action.py"
                 destination: coverage_artifacts
 
     gen_coverage:
