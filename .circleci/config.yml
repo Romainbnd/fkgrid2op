@@ -60,6 +60,10 @@ jobs:
                   export _GRID2OP_FORCE_TEST=1
                   coverage run --parallel-mode -m unittest -v $(cat /tmp/tests_run)
                   ls -lah | grep .coverage
+            - run:
+                command: |
+                  ls -lah grid2op/tests/.coverage.*
+                  
             - store_artifacts:
                 path: grid2op/tests/.coverage.*
                 destination: coverage_artifacts
