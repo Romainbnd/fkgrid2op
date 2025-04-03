@@ -62,10 +62,10 @@ jobs:
                   ls -lah | grep .coverage
             - run:
                 command: |
-                  ls -lah grid2op/tests/.coverage.*
-                  
+                  ls -lah /Grid2Op/grid2op/tests/.coverage.*
+
             - store_artifacts:
-                path: grid2op/tests/.coverage.*
+                path: /Grid2Op/grid2op/tests/.coverage.*
                 destination: coverage_artifacts
 
     gen_coverage:
