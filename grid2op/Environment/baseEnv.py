@@ -3435,9 +3435,10 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         mw_gen_lost_this = new_p[gen_detached_user].sum() 
         
         # handle loads
+        mw_load_lost_this = self._prev_load_p[load_detached_user].sum() 
         
         # put everything together
-        total_power_lost = -mw_gen_lost_this
+        total_power_lost = -mw_gen_lost_this + mw_load_lost_this
         self._detached_elements_mw = (-total_power_lost + 
                                       self._actual_dispatch[gen_detached_user].sum() - 
                                       self._detached_elements_mw_prev)
@@ -3652,7 +3653,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             )
             new_p = self._get_new_prod_setpoint(action)
             new_p_th = 1.0 * new_p
-            self._feed_data_for_detachment(new_p_th)
+            self._feed_data_for_detachment(new_p_th)  # should be called before _axu_apply_detachment
             
             # storage unit
             if cls.n_storage > 0:

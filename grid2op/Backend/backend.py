@@ -514,7 +514,7 @@ class Backend(GridObjects, ABC):
         self._gen_bus_target.resize(cls.n_gen)
         self._gen_bus_target.flags.writeable = False
         self._storage_bus_target.flags.writeable = True
-        self._storage_bus_target.resize(cls.n_storage)
+        self._storage_bus_target.resize(cls.n_storage, refcheck=False)
         self._storage_bus_target.flags.writeable = False
         if cls.shunts_data_available:
             self._shunt_bus_target.flags.writeable = True
