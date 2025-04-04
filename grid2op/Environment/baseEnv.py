@@ -3215,7 +3215,10 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         action._modif_storage = tag_storage
         return res_exc_
 
-    def _update_alert_properties(self, action, lines_attacked, subs_attacked):
+    def _update_alert_properties(self,
+                                 action: BaseAction,
+                                 lines_attacked,
+                                 subs_attacked):
         # update the environment with the alert information from the
         # action (if env supports it)
         if type(self).dim_alerts == 0:

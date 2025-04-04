@@ -36,12 +36,13 @@ class TestShedding(unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        p = Parameters()
-        p.MAX_SUB_CHANGED = 5
+        param = Parameters()
+        param.MAX_SUB_CHANGED = 5
+        param.ENV_DOES_REDISPATCHING = False  # some tests fail otherwise
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             self.env = grid2op.make("rte_case5_example",
-                                    param=p,
+                                    param=param,
                                     action_class=CompleteAction,
                                     allow_detachment=True,
                                     test=True,
@@ -313,6 +314,7 @@ class TestSheddingEnv(unittest.TestCase):
     def get_parameters(self):
         params = Parameters()
         params.MAX_SUB_CHANGED = 999999
+        params.ENV_DOES_REDISPATCHING = False
         return params
         
     def setUp(self):
@@ -363,7 +365,8 @@ class TestSheddingEnv(unittest.TestCase):
         # NB warning this test does not pass if STOP_EP_IF_GEN_BREAK_CONSTRAINTS (slack breaks its rampdown !)
         obs, reward, done, info = self.env.step(self.env.action_space({"detach_load": 0}))
         # env converged
-        assert not done
+        assert not done, info["exception"]
+        
         # load properly disconnected
         assert obs.topo_vect[obs.load_pos_topo_vect[0]] == -1
         # 0 in the observation for this load
