@@ -3103,6 +3103,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
                           gen_curtailed: np.ndarray,
                           except_: List[Exception],
                           powerline_status):
+        cls = type(self)
         is_illegal_redisp = False
         is_done = False
         is_illegal_reco = False
@@ -3121,12 +3122,12 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             action.reset_cache_topological_impact()
             action = self._action_space({})
             _ = action.get_topological_impact(powerline_status, _store_in_cache=True, _read_from_cache=False)
-            if type(self).dim_alerts:
+            if cls.dim_alerts:
                 action.raise_alert = orig_action.raise_alert
             is_illegal_redisp = True
             except_.append(except_tmp)
 
-            if type(self).n_storage > 0:
+            if cls.n_storage > 0:
                 # TODO curtailment: cancel it here too !
                 self._storage_current_charge[:] = self._storage_previous_charge
                 self._amount_storage -= self._amount_storage_prev
@@ -3155,7 +3156,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             action.reset_cache_topological_impact()
             res_action = self._action_space({})
             _ = res_action.get_topological_impact(powerline_status, _store_in_cache=True, _read_from_cache=False)
-            if type(self).dim_alerts:
+            if cls.dim_alerts:
                 res_action.raise_alert = action.raise_alert
             is_illegal_redisp = True
             except_.append(except_tmp)
@@ -3179,7 +3180,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             action.reset_cache_topological_impact()
             res_action = self._action_space({})
             _ = res_action.get_topological_impact(powerline_status, _store_in_cache=True, _read_from_cache=False)
-            if type(self).dim_alerts:
+            if cls.dim_alerts:
                 res_action.raise_alert = action.raise_alert
             except_.append(except_tmp)
         else:
@@ -3196,12 +3197,14 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # the environment must make sure it's a zero-sum action.
         # same kind of limit for the storage
         res_exc_ = None
-        # cancel the redisp tag (storage should be kept for topology)
+        # cancel the redisp and storage tags (set later in the code)
         tag_redisp = action._modif_redispatch
+        tag_storage = action._modif_storage
         action._modif_redispatch = False
+        action._modif_storage = False
         # cancel the values
-        action._redispatch[:] = 0.0  # redispatch is added in _aux_apply_redisp a bit later in the code
-        action._storage_power[:] = self._storage_power
+        action._redispatch[:] = 0.0  # redispatch is added after everything in the code (even after the opponent)
+        action._storage_power[:] = 0.0  # storage is also added after everything
         # add the action
         self._backend_action += action
         # put initial value
@@ -3209,6 +3212,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         action._redispatch[:] = init_disp
         # put back the tags
         action._modif_redispatch = tag_redisp
+        action._modif_storage = tag_storage
         return res_exc_
 
     def _update_alert_properties(self, action, lines_attacked, subs_attacked):
@@ -3689,6 +3693,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
                 # TODO storage: check the original action, even when replaced by do nothing is not modified
                 self._backend_action += self._env_modification
                 self._backend_action.set_redispatch(self._actual_dispatch)
+                self._backend_action.set_storage(self._storage_power)
 
                 # now get the new generator voltage setpoint
                 voltage_control_act = self._voltage_control(action, prod_v_chronics)
