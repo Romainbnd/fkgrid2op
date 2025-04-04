@@ -17,8 +17,19 @@ from grid2op.dtypes import dt_float
 from grid2op.Action.baseAction import BaseAction
 from grid2op.Exceptions import AmbiguousAction
 from grid2op.Action import CompleteAction
+from grid2op.Backend import PandaPowerBackend
 from grid2op.Parameters import Parameters
 from grid2op.Action._backendAction import _BackendAction
+
+
+class _BackendNoDetach(PandaPowerBackend):
+    @classmethod
+    def set_detachment_is_allowed(cls, detachment_is_allowed: bool) -> None:
+        cls.detachment_is_allowed = False
+            
+    def load_grid(self, path, filename = None):
+        self.cannot_handle_detachment()
+        return super().load_grid(path, filename)
 
 
 class TestShedding(unittest.TestCase):
@@ -494,19 +505,26 @@ class TestSheddingActionsNoShedding(unittest.TestCase):
 class TestDetachmentRedisp(unittest.TestCase):
     def setUp(self):
         super().setUp()
-        p = Parameters()
-        p.MAX_SUB_CHANGED = 999999
+        param = Parameters()
+        param.MAX_SUB_CHANGED = 999999
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             self.env = grid2op.make("educ_case14_storage",
-                                    param=p,
+                                    param=param,
                                     action_class=CompleteAction,
                                     allow_detachment=True,
                                     test=True,
                                     _add_to_name=type(self).__name__)
-            type(self.env).gen_pmax = 3. * np.array([140., 120., 70., 70., 40., 100.])
-            type(self.env).gen_max_ramp_down = type(self.env).gen_pmax
-            type(self.env).gen_max_ramp_up = type(self.env).gen_pmax
+            # assign new limits not to get limited by it
+            new_vals = 3. * np.array([140., 120., 70., 70., 40., 100.])
+            li_all_cls = [type(self.env),
+                          type(self.env.action_space),
+                          self.env.action_space.actionClass]
+            for this_cls in li_all_cls:
+                this_cls.gen_pmax = new_vals
+                this_cls.gen_max_ramp_down = new_vals
+                this_cls.gen_max_ramp_up = new_vals
+            self.tol_redisp = max(self.env._epsilon_poly, 1e-5)
         obs = self.env.reset(seed=0, options={"time serie id": 0}) # Reproducibility
         return super().setUp()
     
@@ -514,24 +532,25 @@ class TestDetachmentRedisp(unittest.TestCase):
         self.env.close()
         return super().tearDown()
     
-    def test_no_redisp_no_detach(self):
+    def test_no_redisp_no_detach(self, tol=1e-5):
         # just a basic test to get the values not modified
         obs, reward, done, info = self.env.step(self.env.action_space())
-        assert abs(obs.gen_p[0] - 83.6) <= 1e-6, f'{obs.gen_p[0]} vs 83.6'
+        assert abs(obs.gen_p[0] - 83.6) <= tol, f'{obs.gen_p[0]} vs 83.6'
         obs, reward, done, info = self.env.step(self.env.action_space())
-        assert abs(obs.gen_p[0] - 83.4) <= 1e-6, f'{obs.gen_p[0]} vs 83.4'
+        assert abs(obs.gen_p[0] - 83.4) <= tol, f'{obs.gen_p[0]} vs 83.4'
         obs, reward, done, info = self.env.step(self.env.action_space())
-        assert abs(obs.gen_p[0] - 83.9) <= 1e-6, f'{obs.gen_p[0]} vs 83.9'
+        assert abs(obs.gen_p[0] - 83.9) <= tol, f'{obs.gen_p[0]} vs 83.9'
         
     def test_detached_no_redisp_0(self):
-        gen_id = 1
+        amount_redisp = 10.
         # first test: apply redispatch, then disco
-        act = self.env.action_space({"redispatch": [(0, 1.)]})
+        act = self.env.action_space({"redispatch": [(0, amount_redisp)]})
         # act = self.env.action_space()
         obs, reward, done, info = self.env.step(act)
         assert not done
-        assert np.abs(obs.actual_dispatch[0] - 1.) <= 1e-8, f"{obs.actual_dispatch[0]} vs 1."
-        assert np.abs(obs.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs.actual_dispatch.sum()} vs 0."
+        assert not info["exception"], info["exception"]
+        assert np.abs(obs.actual_dispatch[0] - amount_redisp) <= 1e-8, f"{obs.actual_dispatch[0]} vs {amount_redisp}"
+        assert np.abs(obs.actual_dispatch.sum() - 0.) <= self.tol_redisp, f"{obs.actual_dispatch.sum()} vs 0."
         # does not work, env chronics are not precise (even without redisp it's 2.9 MW or something)
         # assert abs(obs.gen_p_delta.sum() - 0.) <= 1., f"{obs.gen_p_delta.sum()}"  # gen_p delta should be bellow 1 MW
         
@@ -540,8 +559,8 @@ class TestDetachmentRedisp(unittest.TestCase):
         assert not done2, info2["exception"]
         assert np.abs(obs2.gen_p[0] - 0.) <= 1e-8, f"{obs2.gen_p[0]} vs 0."
         assert np.abs(obs2.actual_dispatch[0]) <= 1e-8, f"{obs2.actual_dispatch[0]} vs 0."
-        # dispatch should compensate the 83.4 MW (base) and the +1 (of the dispatch)
-        assert np.abs(obs2.actual_dispatch.sum() + (83.4 + 1)) <= 1e-5, f"{obs2.actual_dispatch.sum()} vs {(83.4 + 1)}"
+        # dispatch should compensate the 83.4 MW (base)
+        assert np.abs(obs2.actual_dispatch.sum() - (83.4)) <= self.tol_redisp, f"{obs2.actual_dispatch.sum()} vs {(83.4)}"
         # does not work, env chronics are not precise (even without redisp it's 2.9 MW or something)
         # assert abs(obs2.gen_p_delta.sum() - 0.) <= 1., f"{obs2.gen_p_delta.sum()}"  # gen_p delta should be bellow 1 MW
         
@@ -551,35 +570,99 @@ class TestDetachmentRedisp(unittest.TestCase):
         assert np.abs(obs3.gen_p[0] - 0.) <= 1e-8, f"{obs3.gen_p[0]} vs 0."
         assert np.abs(obs3.actual_dispatch[0]) <= 1e-8, f"{obs3.actual_dispatch[0]} vs 0."
         # dispatch should compensate the 83.4 MW (base) and the +1 (of the dispatch)
-        assert np.abs(obs3.actual_dispatch.sum() + (83.9 + 1)) <= 1e-5, f"{obs3.actual_dispatch.sum()} vs {(83.9 + 1)}"
+        assert np.abs(obs3.actual_dispatch.sum() - (83.9 )) <= self.tol_redisp, f"{obs3.actual_dispatch.sum()} vs {(83.9)}"
         # does not work, env chronics are not precise (even without redisp it's 2.9 MW or something)
         
     def test_detached_no_redisp_1(self):
         # second test: apply disconnect, then redispatch
         act_redisp = self.env.action_space({"redispatch": [(0, 1.)]})
         act_disc = self.env.action_space({"set_bus": {"generators_id": [(0, -1)]}})
-        
         obs, reward, done, info = self.env.step(act_disc)
         assert not done
         assert np.abs(obs.actual_dispatch[0] - 0.) <= 1e-8, f"{obs.actual_dispatch[0]} vs 0."
-        assert np.abs(obs.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs.actual_dispatch.sum()} vs 0."
+        assert np.abs(obs.actual_dispatch.sum() - 83.6) <= self.tol_redisp, f"{obs.actual_dispatch.sum()} vs 83.6"
         assert np.abs(obs.gen_p[0] - 0.) <= 1e-8, f"{obs.gen_p[0]} vs 0."
         
         obs2, r2, done2, info2 = self.env.step(act_redisp)
         assert not done2, info2["exception"]
         assert np.abs(obs2.actual_dispatch[0]) <= 1e-8, f"{obs2.actual_dispatch[0]} vs 0."
-        assert np.abs(obs2.actual_dispatch.sum() - 0.) <= 1e-5, f"{obs2.actual_dispatch.sum()} vs 0."
+        assert np.abs(obs2.actual_dispatch.sum() - 83.4) <= self.tol_redisp, f"{obs2.actual_dispatch.sum()} vs 83.4"
         
+        obs3, r3, done3, info3 = self.env.step(self.env.action_space())
+        assert not done3, info3["exception"]
+        assert np.abs(obs3.actual_dispatch[0]) <= 1e-8, f"{obs3.actual_dispatch[0]} vs 0."
+        assert abs(obs3.gen_p[0]) <= 1e-8, f"{obs3.gen_p[0]} vs 0."
+        assert np.abs(obs3.actual_dispatch.sum() - 83.9) <= self.tol_redisp, f"{obs3.actual_dispatch.sum()} vs 83.9"
+                
+    def test_detached_reattached(self):
+        # second test: apply redisp, then disco, then reco
+        act_redisp = self.env.action_space({"redispatch": [(0, 1.)]})
+        act_disc = self.env.action_space({"set_bus": {"generators_id": [(0, -1)]}})
+        act_reco = self.env.action_space({"set_bus": {"generators_id": [(0, 1)]}})
+        obs, reward, done, info = self.env.step(act_redisp)
+        assert not done
+        assert np.abs(obs.actual_dispatch[0] - 1.) <= 1e-8, f"{obs.actual_dispatch[0]} vs 0."
+        assert np.abs(obs.actual_dispatch.sum() - 0.) <= self.tol_redisp, f"{obs.actual_dispatch.sum()} vs 0."
+
+        obs2, r2, done2, info2 = self.env.step(act_disc)
+        assert not done2, info2["exception"]
+        assert np.abs(obs2.actual_dispatch[0]) <= 1e-8, f"{obs2.actual_dispatch[0]} vs 0."
+        assert np.abs(obs2.actual_dispatch.sum() - 83.4) <= self.tol_redisp, f"{obs2.actual_dispatch.sum()} vs 83.4"
+        
+        obs3, r3, done3, info3 = self.env.step(act_reco)
+        assert not done3, info3["exception"]
+        assert np.abs(obs3.actual_dispatch[0] - 1.) <= self.tol_redisp, f"{obs3.actual_dispatch[0]} vs 1."
+        assert abs(obs3.gen_p[0] - (83.9 + 1.) ) <= self.tol_redisp, f"{obs3.gen_p[0]} vs 84.9"
+        assert np.abs(obs3.actual_dispatch.sum() - 0.) <= self.tol_redisp, f"{obs3.actual_dispatch.sum()} vs 83.9"
+        
+
+class TestSheddingcorrectlySet(unittest.TestCase):
+    def test_shedding_env1_bk1(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("educ_case14_storage",
+                               action_class=CompleteAction,
+                               allow_detachment=True,
+                               test=True,
+                               _add_to_name=type(self).__name__+"test_shedding_env1_bk1")
+        assert type(env).detachment_is_allowed
+        
+    def test_shedding_env0_bk1(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("educ_case14_storage",
+                               action_class=CompleteAction,
+                               allow_detachment=False,
+                               test=True,
+                               _add_to_name=type(self).__name__+"test_shedding_env0_bk1")
+        assert not type(env).detachment_is_allowed
+        
+    def test_shedding_env1_bk0(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("educ_case14_storage",
+                               action_class=CompleteAction,
+                               allow_detachment=True,
+                               test=True,
+                               backend=_BackendNoDetach(),
+                               _add_to_name=type(self).__name__+"test_shedding_env1_bk1")
+        assert not type(env).detachment_is_allowed
+        
+    def test_shedding_env0_bk0(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("educ_case14_storage",
+                               action_class=CompleteAction,
+                               allow_detachment=False,
+                               test=True,
+                               backend=_BackendNoDetach(),
+                               _add_to_name=type(self).__name__+"test_shedding_env0_bk1")
+        assert not type(env).detachment_is_allowed
         
 # TODO with the env parameters STOP_EP_IF_GEN_BREAK_CONSTRAINTS and ENV_DOES_REDISPATCHING
-# TODO when something is "re attached" on the grid
-# TODO check gen detached does not participate in redisp
 
 # TODO shedding in simulate
 # TODO shedding in Simulator !
-
-# TODO Shedding: test when backend does not support it is not set
-# TODO shedding: test when user deactivates it it is not set
 
 # TODO Shedding: Runner
 

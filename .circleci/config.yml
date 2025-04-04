@@ -47,7 +47,7 @@ jobs:
                   export _GRID2OP_FORCE_TEST=1
                   cd grid2op/tests/
                   python3 helper_list_test.py > li_test
-                  head -n 40 li_test | circleci tests split > /tmp/tests_run
+                  cat li_test | circleci tests split > /tmp/tests_run
             - run:
                 command: |
                   source venv_test/bin/activate
@@ -58,15 +58,15 @@ jobs:
                   source venv_test/bin/activate
                   cd grid2op/tests/
                   export _GRID2OP_FORCE_TEST=1
-                  coverage run --parallel-mode -m unittest -v $(cat /tmp/tests_run)
-                  ls -lah | grep .coverage
-            - run:
-                command: |
-                  ls -lah /Grid2Op/grid2op/tests/.coverage.*
+                  coverage run -m unittest -v $(cat /tmp/tests_run)
+                #   ls -lah | grep .coverage
+            # - run:
+            #     command: |
+            #       ls -lah /Grid2Op/grid2op/tests/.coverage.*
 
-            - store_artifacts:
-                path: "/Grid2Op/grid2op/tests/test_Action*.py"
-                destination: coverage_artifacts/
+            # - store_artifacts:
+            #     path: "/Grid2Op/grid2op/tests/test_Action.py"
+            #     destination: coverage_artifacts/
 
     gen_coverage:
         executor: grid2op-executor

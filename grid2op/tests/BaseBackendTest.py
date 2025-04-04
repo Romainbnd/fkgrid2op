@@ -2636,8 +2636,8 @@ class BaseTestStorageAction(MakeBackend):
             not done
         ), f"i should be able to do a step with some storage units error is {exc_}"
         storage_p, storage_q, storage_v = self.env.backend.storages_info()
-        assert np.all(np.abs(storage_p - 0.0) <= self.tol_one)
-        assert np.all(np.abs(storage_q - 0.0) <= self.tol_one)
+        assert np.all(np.abs(storage_p - 0.0) <= self.tol_one), f"{storage_p} vs 0."
+        assert np.all(np.abs(storage_q - 0.0) <= self.tol_one), f"{storage_q} vs 0."
 
         # first case, standard modification
         array_modif = np.array([-1.5, -10.0], dtype=dt_float)
@@ -2654,8 +2654,8 @@ class BaseTestStorageAction(MakeBackend):
         obs, reward, done, info = self.env.step(act)
         assert not info["exception"]
         storage_p, storage_q, storage_v = self.env.backend.storages_info()
-        assert np.all(np.abs(storage_p - array_modif) <= self.tol_one)
-        assert np.all(np.abs(storage_q - 0.0) <= self.tol_one)
+        assert np.all(np.abs(storage_p - array_modif) <= self.tol_one), f"{storage_p} vs {array_modif}"
+        assert np.all(np.abs(storage_q - 0.0) <= self.tol_one), f"{storage_q} vs {0.}"
         assert obs.storage_bus[0] == 2
         assert obs.line_or_bus[8] == 2
         assert obs.gen_bus[3] == 2

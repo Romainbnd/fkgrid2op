@@ -3196,11 +3196,9 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # the environment must make sure it's a zero-sum action.
         # same kind of limit for the storage
         res_exc_ = None
-        # cancel the tags
+        # cancel the redisp tag (storage should be kept for topology)
         tag_redisp = action._modif_redispatch
-        tag_storage = action._modif_storage
         action._modif_redispatch = False
-        action._modif_storage = False
         # cancel the values
         action._redispatch[:] = 0.0  # redispatch is added in _aux_apply_redisp a bit later in the code
         action._storage_power[:] = self._storage_power
@@ -3211,7 +3209,6 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         action._redispatch[:] = init_disp
         # put back the tags
         action._modif_redispatch = tag_redisp
-        action._modif_storage = tag_storage
         return res_exc_
 
     def _update_alert_properties(self, action, lines_attacked, subs_attacked):
@@ -3395,7 +3392,11 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             self._storage_power[self._storages_detached] = 0.
             
     def _aux_run_pf_after_state_properly_set(
-        self, action, init_line_status, new_p, except_
+        self,
+        action: BaseAction,
+        init_line_status,
+        new_p,
+        except_ : List[Exception]
     ):
         has_error = True
         detailed_info = None
@@ -3429,11 +3430,18 @@ class BaseEnv(GridObjects, RandomObject, ABC):
     def _aux_apply_detachment(self, new_p, new_p_th):
         gen_detached_user = self._backend_action.get_gen_detached()
         load_detached_user = self._backend_action.get_load_detached()
+        
         # handle gen
-        mw_gen_lost_this = new_p[gen_detached_user].sum() # + self._actual_dispatch[gen_detached_user].sum()
+        mw_gen_lost_this = new_p[gen_detached_user].sum() 
+        
         # handle loads
-        self._detached_elements_mw = -mw_gen_lost_this - self._detached_elements_mw_prev
-        self._detached_elements_mw_prev = self._detached_elements_mw
+        
+        # put everything together
+        total_power_lost = -mw_gen_lost_this
+        self._detached_elements_mw = (-total_power_lost + 
+                                      self._actual_dispatch[gen_detached_user].sum() - 
+                                      self._detached_elements_mw_prev)
+        self._detached_elements_mw_prev = -total_power_lost
         
         # and now modifies the vectors
         new_p[gen_detached_user] = 0.

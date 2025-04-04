@@ -261,7 +261,6 @@ class Backend(GridObjects, ABC):
                           "upgrade it to a newer version.")
         self.n_busbar_per_sub = DEFAULT_N_BUSBAR_PER_SUB
 
-        
     def can_handle_detachment(self):
         """
         .. versionadded:: 1.11.0
@@ -280,7 +279,8 @@ class Backend(GridObjects, ABC):
             :func:`Backend.cannot_handle_detachment`.
             
             If not, then the environments created with your backend will not be able to 
-            "operate" grid with load and generator detachment.
+            "operate" the grid with load and generator detached (episode will be terminated
+            if this happens).
             
         .. danger::
             We highly recommend you do not try to override this function. 
