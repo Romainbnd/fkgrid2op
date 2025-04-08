@@ -158,6 +158,8 @@ Native multi agents support:
 - [FIXED] an issue in the AAA tests: when backend does not support storages, some tests were skipped not correctly
 - [FIXED] an issue when computing the cascading failure routine, in case multiple iterations were performed, 
   the cooldowns were not updated correctly.
+- [ADDED] Possibility to disconnect loads, generators and storage units (if proper flag set in the environment).
+  See documentation.
 - [ADDED] possibility to set the "thermal limits" when calling `env.reset(..., options={"thermal limit": xxx})`
 - [ADDED] possibility to retrieve some structural information about elements with
   with `gridobj.get_line_info(...)`, `gridobj.get_load_info(...)`, `gridobj.get_gen_info(...)` 
@@ -203,6 +205,7 @@ Native multi agents support:
   it... unless you know what you are doing)
 - [IMPROVED] `ForecastEnv` is now part of the public API.
 - [IMPROVED] no need to call `self._compute_pos_big_top()` at the end of the implementation of `backend.load_grid()`
+- [IMPROVED] type hints in various files.
 
 [1.10.5] - 2025-03-07
 ------------------------

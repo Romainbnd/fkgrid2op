@@ -698,6 +698,7 @@ class __AuxBoxGymActSpace:
 
 
 if GYM_AVAILABLE:
+    # pragma: no cover
     from gym.spaces import Box as LegGymBox
     from grid2op.gym_compat.base_gym_attr_converter import BaseLegacyGymAttrConverter
     BoxLegacyGymActSpace = type("BoxLegacyGymActSpace",

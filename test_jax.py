@@ -1,5 +1,7 @@
 import time
 
+import scipy
+
 import jax.experimental
 import grid2op
 import warnings
@@ -17,6 +19,14 @@ with warnings.catch_warnings():
     env = grid2op.make("l2rpn_case14_sandbox", test=True, backend=LightSimBackend())
     
 grid = env.backend._grid
+time_nr = grid.get_computation_time()
+# NB get_computation_time returns "time_total_nr", which is
+# defined in the powerflow algorithm and not on the linear solver.
+# it takes into account everything needed to solve the powerflow
+# once everything is passed to the solver.
+# It does not take into account the time to format the data in the 
+# from the GridModel 
+print(f"Time to perform 1 powerflow : {time_nr}s on 1 cpu {1./time_nr:.2e} powerflow / s")
 # numpy
 Ybus = coo_matrix(grid.get_Ybus())
 Sbus = grid.get_Sbus()
@@ -153,31 +163,108 @@ for i in range(200):
 #         print(f"\terror at iteration {i}: {this_err}")
 # print(f"Final error {this_err}")
 end_ = time.perf_counter()
-print(f"Time to perform 1 powerflow : {end_ - beg_:.2e}s on cpu")
+print(f"Time to perform 1 powerflow : {end_ - beg_:.2e}s on cpu {1. / (end_ - beg_):.2e} pf/s")
 
 # for lots of powerflow
 # TODO
-nb_powerflows = 10
-Ybuses = jax.experimental.sparse.bcoo_concatenate([Ybus_jax for _ in range(nb_powerflows)], dimension=0)
-Sbuses = jax.lax.concatenate([Sbus_jax for _ in range(nb_powerflows)], dimension=0)
-pvpqs = jax.lax.concatenate([pvpq_jax for _ in range(nb_powerflows)], dimension=0)
-pqs = jax.lax.concatenate([pq_jax for _ in range(nb_powerflows)], dimension=0)
+nb_powerflows = 10_000
+
+# scipy world
+nb_buses_one = Ybus.shape[0]
+Ybuses = scipy.sparse.block_diag([Ybus for _ in range(nb_powerflows)])
+Sbuses = np.concatenate([Sbus for _ in range(nb_powerflows)])
+v_inits = np.concatenate([v_init for _ in range(nb_powerflows)])
+pvs = np.concatenate([pv + i*nb_buses_one for i in range(nb_powerflows)] )
+pqs = np.concatenate([pq + i*nb_buses_one for i in range(nb_powerflows)] )
+pvpqs = np.concatenate((pvs, pqs))
+
+# back to jax
+Ybuses_jax = sparse.BCOO.from_scipy_sparse(Ybuses)
+Sbuses_jax = jnp.asarray(Sbuses, copy=True)
+pqs_jax = jnp.asarray(pqs, copy=True)
+pvpqs_jax = jnp.asarray(pvpqs, copy=True)
+v_inits_jax = jnp.asarray(v_inits, copy=True)
+# jax.lax.concatenate([v_init_jax for _ in range(nb_powerflows)], dimension=0)
 optimizer_s = optax.adam(learning_rate)
-params_s = {'v': jnp.abs(jax.lax.concatenate([v_init_jax for _ in range(nb_powerflows)], dimension=0)),
-            "theta": jnp.angle(jax.lax.concatenate([v_init_jax for _ in range(nb_powerflows)], dimension=0))}
+params_s = {'v': jnp.abs(v_inits_jax),
+            "theta": jnp.angle(v_inits_jax)}
 opt_state_s = optimizer_s.init(params_s)
 
+
+def training_loop_jax(nb_it,
+                      dloss_dparm,
+                      optimizer_s,
+                      opt_state_s,
+                      params_s,
+                      Ybuses_jax,
+                      Sbuses_jax,
+                      pvpqs_jax,
+                      pqs_jax):
+    
+    def body_fun(it_num,
+                 args):
+        (dloss_dparm,
+        optimizer_s,
+        opt_state_s,
+        params_s,
+        Ybuses_jax,
+        Sbuses_jax,
+        pvpqs_jax,
+        pqs_jax) = args
+        grads = dloss_dparm(params_s, Ybuses_jax, Sbuses_jax, pvpqs_jax, pqs_jax)
+        updates, opt_state_s = optimizer_s.update(grads, opt_state_s)
+        params_s = optax.apply_updates(params_s, updates)
+        res = (dloss_dparm,
+               optimizer_s,
+               opt_state_s,
+               params_s,
+               Ybuses_jax,
+               Sbuses_jax,
+               pvpqs_jax,
+               pqs_jax)
+        return res
+    
+    init = (dloss_dparm,
+            optimizer_s,
+            opt_state_s,
+            params_s,
+            Ybuses_jax,
+            Sbuses_jax,
+            pvpqs_jax,
+            pqs_jax)
+    res = jax.lax.fori_loop(0, 2,  body_fun, init)
+    (dloss_dparm,
+     optimizer_s,
+     opt_state_s,
+     params_s,
+     Ybuses_jax,
+     Sbuses_jax,
+     pvpqs_jax,
+     pqs_jax) = res
+    return params_s
+
+training_loop_jax_jit = jax.jit(training_loop_jax,
+                                static_argnames=('dloss_dparm',
+                                                 'optimizer_s',
+                                                 'nb_it',
+                                                #  'Ybuses_jax',
+                                                #  'Sbuses_jax',
+                                                #  'pvpqs_jax',
+                                                #  'pqs_jax'
+                                                 ))
+
 beg_ = time.perf_counter()
-for i in range(200):
-    grads = dloss_dparm_jit(params_s, Ybuses, Sbuses, pvpqs, pqs)
-    updates, opt_state = optimizer_s.update(grads, opt_state)
-    params_s = optax.apply_updates(params_s, updates)
-    if i % 10 == 0:
-        this_err = get_error_jax_2_jit(params_s["v"], params_s["theta"], Ybuses, Sbuses, pvpqs, pqs)
-        print(f"\terror at iteration {i}: {this_err}")
-print(f"Final error {this_err}")
+training_loop_jax_jit(200, 
+                      dloss_dparm_jit,
+                      optimizer_s,
+                      opt_state_s,
+                      params_s,
+                      Ybuses_jax,
+                      Sbuses_jax,
+                      pvpqs_jax,
+                      pqs_jax)
 end_ = time.perf_counter()
-print(f"Time to perform {nb_powerflows} powerflow : {end_ - beg_:.2e}s on cpu")
+print(f"Time to perform {nb_powerflows} powerflow : {end_ - beg_:.2e}s on cpu  {nb_powerflows / (end_ - beg_):.2e} pf/s")
 
 
 # newton raphson (does not work ! need to really invert !)

@@ -12,6 +12,7 @@ from typing import Tuple, Union
 try:
     from typing import Self
 except ImportError:
+    # pragma: no cover
     from typing_extensions import Self
 
 from grid2op.Action.baseAction import BaseAction
@@ -102,12 +103,14 @@ class ValueStore:
         
         # less abstractly, say `load_p` is a ValueStore:
         # self._grid.change_all_loads_active_value(where_changed=load_p.changed,
-                                                   new_vals=load_p.values[load_p.changed])
+                                                   new_vals=load_p.values)
         # fictive example of couse, I highly doubt the self._grid
         # implements a method named exactly `change_all_loads_active_value`
         
         WARNING, DANGER AHEAD:
-        Never trust the data in load_p.values[~load_p.changed], they might even be un intialized...
+        # Never trust the data in load_p.values[~load_p.changed], they might even be un intialized...
+        
+        # Basically, if you use a "ValueStore" never use val_sto.values[i] if val_sto.changed[i] is ``False``
         
     """
 
@@ -162,6 +165,7 @@ class ValueStore:
         self.last_index = 0
 
     def change_status(self, switch, lineor_id, lineex_id, old_vect):
+        # pragma: no cover
         if not switch.any():
             # nothing is modified so i stop here
             return
@@ -238,10 +242,6 @@ class ValueStore:
     def __getitem__(self, item):
         return self.values[item]
 
-    def __setitem__(self, key, value):
-        self.values[key] = value
-        self.changed[key] = value
-
     def __iter__(self):
         return self
 
@@ -288,7 +288,7 @@ class ValueStore:
         res.__size = self.__size
         return res
 
-    def copy(self, other):
+    def copy_from(self, other):
         """deepcopy, shallow or deep, without having to initialize everything again"""
         self.values[:] = other.values
         self.changed[:] = other.changed
@@ -537,21 +537,21 @@ class _BackendAction(GridObjects):
         """
         res = type(self)()
         # last connected registered
-        res.last_topo_registered.copy(self.last_topo_registered)
-        res.current_topo.copy(self.current_topo)
-        res.prod_p.copy(self.prod_p)
-        res.prod_v.copy(self.prod_v)
-        res.load_p.copy(self.load_p)
-        res.load_q.copy(self.load_q)
-        res.storage_power.copy(self.storage_power)
+        res.last_topo_registered.copy_from(self.last_topo_registered)
+        res.current_topo.copy_from(self.current_topo)
+        res.prod_p.copy_from(self.prod_p)
+        res.prod_v.copy_from(self.prod_v)
+        res.load_p.copy_from(self.load_p)
+        res.load_q.copy_from(self.load_q)
+        res.storage_power.copy_from(self.storage_power)
         res.activated_bus[:, :] = self.activated_bus
         # res.big_topo_to_subid[:] = self.big_topo_to_subid  # cste
         cls = type(self)
         if cls.shunts_data_available:
-            res.shunt_p.copy(self.shunt_p)
-            res.shunt_q.copy(self.shunt_q)
-            res.shunt_bus.copy(self.shunt_bus)
-            res.current_shunt_bus.copy(self.current_shunt_bus)
+            res.shunt_p.copy_from(self.shunt_p)
+            res.shunt_q.copy_from(self.shunt_q)
+            res.shunt_bus.copy_from(self.shunt_bus)
+            res.current_shunt_bus.copy_from(self.current_shunt_bus)
 
         res._status_or_before[:] = self._status_or_before
         res._status_ex_before[:] = self._status_ex_before
@@ -748,7 +748,10 @@ class _BackendAction(GridObjects):
             self.last_topo_registered,
         )
     
-    def _aux_iadd_detach(self, other, set_topo_vect : np.ndarray, modif_inj: bool):
+    def _aux_iadd_detach(self,
+                         other: BaseAction,
+                         set_topo_vect : np.ndarray,
+                         modif_inj: bool):
         cls = type(self)
         if other._modif_detach_load:
             set_topo_vect[cls.load_pos_topo_vect[other._detach_load]] = -1
@@ -1069,7 +1072,7 @@ class _BackendAction(GridObjects):
         self._loads_bus.copy_from_index(self.current_topo, type(self).load_pos_topo_vect)
         return self._loads_bus
 
-    def _aux_to_global(self, value_store, to_subid) -> ValueStore:
+    def _aux_to_global(self, value_store : ValueStore, to_subid) -> ValueStore:
         value_store = copy.deepcopy(value_store)
         value_store.values = type(self).local_bus_to_global(value_store.values, to_subid)
         return value_store
