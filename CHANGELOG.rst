@@ -175,6 +175,7 @@ Native multi agents support:
 - [ADDED] possibility to set the initial time stamp of the observation in the `env.reset`
   kwargs by using `env.reset(..., options={"init datetime": XXX})`
 - [ADDED] the `ChangeNothing` time series class now supports forecast
+- [ADDED] test coverage on the CI
 - [IMPROVED] possibility to set the injections values with names
   to be consistent with other way to set the actions (*eg* set_bus)
 - [IMPROVED] error messages when creating an action which changes the injections

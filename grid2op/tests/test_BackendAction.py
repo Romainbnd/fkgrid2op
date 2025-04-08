@@ -452,10 +452,11 @@ class TestBackendAction_Base(unittest.TestCase):
         assert (type(self.env).local_bus_to_global(local, type(self.env).shunt_to_subid) == global_).all()
         
         # other
-        for attr_nm in ["storages", "lines_ex", "lines_or", "gens_bus", "loads"]:
-            global_ = getattr(self.env._backend_action, f"get_{attr_nm}_bus_global")()
-            local_ = getattr(self.env._backend_action, f"get_{attr_nm}_bus")()
-            # TODO
+        for attr_nm, attr_nm_env in zip(["storages", "lines_ex", "lines_or", "gens", "loads"],
+                                        ["storage", "line_ex", "line_or", "gen", "load"]):
+            global_ = getattr(self.env._backend_action, f"get_{attr_nm}_bus_global")().values
+            local_ = getattr(self.env._backend_action, f"get_{attr_nm}_bus")().values
+            assert (type(self.env).local_bus_to_global(local_, getattr(type(self.env), f"{attr_nm_env}_to_subid")) == global_).all()
              
         
         
