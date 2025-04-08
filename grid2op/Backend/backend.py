@@ -1455,7 +1455,7 @@ class Backend(GridObjects, ABC):
         infos = []
         disconnected_during_cf = np.full(type(self).n_line, fill_value=-1, dtype=dt_int)
         conv_ = self._runpf_with_diverging_exception(is_dc)
-        if env._no_overflow_disconnection or conv_ is not None:
+        if env._no_overflow_disconnection or env._called_from_reset or conv_ is not None:
             return disconnected_during_cf, infos, conv_
 
         # the environment disconnect some powerlines

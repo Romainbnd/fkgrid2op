@@ -158,6 +158,7 @@ Native multi agents support:
 - [FIXED] an issue in the AAA tests: when backend does not support storages, some tests were skipped not correctly
 - [FIXED] an issue when computing the cascading failure routine, in case multiple iterations were performed, 
   the cooldowns were not updated correctly.
+- [FIXED] cascading failure could be started at the first observation (t=0, just after a reset).
 - [ADDED] Possibility to disconnect loads, generators and storage units (if proper flag set in the environment).
   See documentation.
 - [ADDED] possibility to set the "thermal limits" when calling `env.reset(..., options={"thermal limit": xxx})`
