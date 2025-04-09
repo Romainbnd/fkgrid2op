@@ -1455,7 +1455,7 @@ class Backend(GridObjects, ABC):
         infos = []
         disconnected_during_cf = np.full(type(self).n_line, fill_value=-1, dtype=dt_int)
         conv_ = self._runpf_with_diverging_exception(is_dc)
-        if env._no_overflow_disconnection or env._called_from_reset or conv_ is not None:
+        if env._no_overflow_disconnection or conv_ is not None:
             return disconnected_during_cf, infos, conv_
 
         # the environment disconnect some powerlines
@@ -1474,8 +1474,12 @@ class Backend(GridObjects, ABC):
             ) & lines_status
 
             # b) deals with soft overflow (disconnect them if lines still connected)
-            mask_inc = (lines_flows >= thermal_limits) & lines_status
-            mask_inc[counter_increased] = False
+            if env._called_from_reset:
+                # no soft overflow after a reset
+                mask_inc = np.zeros_like(thermal_limits, dtype=dt_bool)
+            else: 
+                mask_inc = (lines_flows >= thermal_limits) & lines_status
+                mask_inc[counter_increased] = False
             init_time_step_overflow[mask_inc] += 1
             counter_increased[mask_inc] = True
             to_disc[
