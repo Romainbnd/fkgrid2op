@@ -208,11 +208,7 @@ Native multi agents support:
 - [IMPROVED] `ForecastEnv` is now part of the public API.
 - [IMPROVED] no need to call `self._compute_pos_big_top()` at the end of the implementation of `backend.load_grid()`
 - [IMPROVED] type hints in various files.
-
-[1.10.5] - 2025-03-07
-------------------------
-- [FIXED] force pandapower < 3 otherwise pandapower backend does not work and 
-  lots of tests are failing.
+- [IMPROVED] documentation of the backend
 
 [1.10.5] - 2025-03-07
 ------------------------

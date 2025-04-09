@@ -5124,7 +5124,7 @@ class {cls.__name__}({cls._INIT_GRID_CLS.__name__}):
         It does not accept any positional argument (only key-word argument) and you need 
         to specify only one of `line_name` OR `line_id` but not both.
         
-        .. info::
+        .. note::
             `line_id` is a python id, so it should be between `0` and `env.n_line - 1`
         
         Examples
@@ -5197,7 +5197,7 @@ class {cls.__name__}({cls._INIT_GRID_CLS.__name__}):
         It does not accept any positional argument (only key-word argument) and you need 
         to specify only one of `load_name` OR `load_id` but not both.
         
-        .. info::
+        .. note::
             `load_id` is a python id, so it should be between `0` and `env.n_load - 1`
         
         Examples
@@ -5234,7 +5234,7 @@ class {cls.__name__}({cls._INIT_GRID_CLS.__name__}):
         It does not accept any positional argument (only key-word argument) and you need 
         to specify only one of `gen_name` OR `gen_id` but not both.
         
-        .. info::
+        .. note::
             `gen_id` is a python id, so it should be between `0` and `env.n_gen - 1`
         
         Examples
@@ -5271,7 +5271,7 @@ class {cls.__name__}({cls._INIT_GRID_CLS.__name__}):
         It does not accept any positional argument (only key-word argument) and you need 
         to specify only one of `storage_name` OR `storage_id` but not both.
         
-        .. info::
+        .. note::
             `storage_id` is a python id, so it should be between `0` and `env.n_storage - 1`
             
         Examples

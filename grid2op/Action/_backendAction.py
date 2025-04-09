@@ -38,7 +38,7 @@ class ValueStore:
     
     There are two correct uses for this class:
     
-    #. by iterating manually with the `for xxx in value_stor_instance: `
+    #. by iterating manually with the `for xxx in value_stor_instance:` 
     #. by checking which objects have been changed (with :attr:`ValueStore.changed` ) and then check the 
        new value of the elements **changed** with :attr:`ValueStore.values` [el_id]
 
