@@ -624,11 +624,7 @@ class Parameters:
             raise RuntimeError(
                 f'Impossible to convert SOFT_OVERFLOW_THRESHOLD to float with error \n:"{exc_}"'
             ) from exc_
-        # if self.SOFT_OVERFLOW_THRESHOLD < 1.0:
-        #     raise RuntimeError(
-        #         "SOFT_OVERFLOW_THRESHOLD < 1., this should be >= 1. (use env.set_thermal_limit "
-        #         "to modify the thermal limit)"
-        #     )
+            
         if self.SOFT_OVERFLOW_THRESHOLD >= self.HARD_OVERFLOW_THRESHOLD:
             raise RuntimeError(
                 "self.SOFT_OVERFLOW_THRESHOLD >= self.HARD_OVERFLOW_THRESHOLD this would that the"
