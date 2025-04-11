@@ -159,6 +159,10 @@ Native multi agents support:
 - [FIXED] an issue when computing the cascading failure routine, in case multiple iterations were performed, 
   the cooldowns were not updated correctly.
 - [FIXED] cascading failure could be started at the first observation (t=0, just after a reset).
+- [FIXED] a bug when "SOFT_OVERFLOW_THRESHOLD" was not 1.: it also impacted "instantaneous overcurrent protections" 
+  (it was triggered when `flow > SOFT_OVERFLOW_THRESHOLD * HARD_OVERFLOW_THRESHOLD * th_lim`)
+- [FIXED] a bug when "SOFT_OVERFLOW_THRESHOLD" was not 1.: the backend routine to compute the protections 
+  disconnected the lines with a counter based on `flow > th_lim` and not `flow > th_lim * SOFT_OVERFLOW_THRESHOLD`
 - [ADDED] Possibility to disconnect loads, generators and storage units (if proper flag set in the environment).
   See documentation.
 - [ADDED] possibility to set the "thermal limits" when calling `env.reset(..., options={"thermal limit": xxx})`
@@ -177,6 +181,9 @@ Native multi agents support:
   kwargs by using `env.reset(..., options={"init datetime": XXX})`
 - [ADDED] the `ChangeNothing` time series class now supports forecast
 - [ADDED] test coverage on the CI
+- [ADDED] the `obs.timestep_protection_triggered` counter which counts whether or not the 
+  "time overcurrent protection" (soft overflow) will be triggered: lines will be disconnected
+  if `time overcurrent protection > parameters.NB_TIMESTEP_POWERFLOW_ALLOWED`
 - [IMPROVED] possibility to set the injections values with names
   to be consistent with other way to set the actions (*eg* set_bus)
 - [IMPROVED] error messages when creating an action which changes the injections
@@ -209,6 +216,7 @@ Native multi agents support:
 - [IMPROVED] no need to call `self._compute_pos_big_top()` at the end of the implementation of `backend.load_grid()`
 - [IMPROVED] type hints in various files.
 - [IMPROVED] documentation of the backend
+- [IMRPOVED] `SOFT_OVERFLOW_THRESHOLD` can now be lower than 1
 
 [1.10.5] - 2025-03-07
 ------------------------

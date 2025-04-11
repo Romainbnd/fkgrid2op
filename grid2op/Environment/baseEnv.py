@@ -226,7 +226,16 @@ class BaseEnv(GridObjects, RandomObject, ABC):
 
         Number of consecutive timesteps each powerline has been on overflow.
 
-    _nb_timestep_overflow_allowed: ``numpy.ndarray``, dtype: int
+    _protection_counter: `numpy.ndarray``, dtype: int
+        .. warning:: /!\\\\ Internal, do not use unless you know what you are doing /!\\\\
+
+        Current state of the delayed protection. It is exacly :attr:`BaseEnv._timestep_overflow` unless
+        :attr:`grid2op.Parameters.Parameters.SOFT_OVERFLOW_THRESHOLD` != 1. 
+        
+        If the soft overflow threshold is different than 1, it counts the number of steps 
+        since the soft overflow threshold is "activated" (flow > limits * soft_overflow_threshold)
+        
+    _nb_ts_max_protection_counter: ``numpy.ndarray``, dtype: int
         .. warning:: /!\\\\ Internal, do not use unless you know what you are doing /!\\\\
 
         Number of consecutive timestep each powerline can be on overflow. It is usually read from
@@ -454,7 +463,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             self._parameters.NO_OVERFLOW_DISCONNECTION
         )
         self._timestep_overflow: np.ndarray = None
-        self._nb_timestep_overflow_allowed: np.ndarray = None
+        self._protection_counter: np.ndarray = None
+        self._nb_ts_max_protection_counter: np.ndarray = None
         self._hard_overflow_threshold: np.ndarray  = None
 
         # store actions "cooldown"
@@ -767,8 +777,9 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # if True, then it will not disconnect lines above their thermal limits
         new_obj._no_overflow_disconnection = self._no_overflow_disconnection
         new_obj._timestep_overflow = copy.deepcopy(self._timestep_overflow)
-        new_obj._nb_timestep_overflow_allowed = copy.deepcopy(
-            self._nb_timestep_overflow_allowed
+        new_obj._protection_counter = copy.deepcopy(self._protection_counter)
+        new_obj._nb_ts_max_protection_counter = copy.deepcopy(
+            self._nb_ts_max_protection_counter
         )
         new_obj._hard_overflow_threshold = copy.deepcopy(self._hard_overflow_threshold)
 
@@ -1417,7 +1428,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         self._times_before_topology_actionable = np.zeros(
             shape=(bk_type.n_sub,), dtype=dt_int
         )
-        self._nb_timestep_overflow_allowed = np.full(
+        self._nb_ts_max_protection_counter = np.full(
             shape=(bk_type.n_line,),
             fill_value=self._parameters.NB_TIMESTEP_OVERFLOW_ALLOWED,
             dtype=dt_int,
@@ -1428,6 +1439,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             dtype=dt_float,
         )
         self._timestep_overflow = np.zeros(shape=(bk_type.n_line,), dtype=dt_int)
+        self._protection_counter = np.zeros(shape=(bk_type.n_line,), dtype=dt_int)
 
         # update the parameters
         self.__new_param = self._parameters  # small hack to have it working as expected
@@ -1531,7 +1543,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         )
         self._nb_ts_reco = self._parameters.NB_TIMESTEP_RECONNECTION
 
-        self._nb_timestep_overflow_allowed[
+        self._nb_ts_max_protection_counter[
             :
         ] = self._parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
         self._hard_overflow_threshold[:] = self._parameters.HARD_OVERFLOW_THRESHOLD
@@ -3267,6 +3279,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # update the thermal limit, for DLR for example
         self.backend.update_thermal_limit(self)  
         overflow_lines = self.backend.get_line_overflow()
+        current_flows = self.backend.get_line_flow()
         # save the current topology as "last" topology (for connected powerlines)
         # and update the state of the disconnected powerline due to cascading failure
         self._backend_action.update_state(disc_lines)
@@ -3285,6 +3298,11 @@ class BaseEnv(GridObjects, RandomObject, ABC):
 
         # set to 0 the number of timestep for lines that are not on overflow
         self._timestep_overflow[~overflow_lines] = 0
+        
+        # update protection counter
+        engaged_protection = current_flows > self.backend.get_thermal_limit() * self._parameters.SOFT_OVERFLOW_THRESHOLD
+        self._protection_counter[engaged_protection] += 1
+        self._protection_counter[~engaged_protection] = 0
 
         # build the topological action "cooldown"
         aff_lines, aff_subs = action.get_topological_impact(_read_from_cache=True)
@@ -3835,7 +3853,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         """
         self._no_overflow_disconnection = self._parameters.NO_OVERFLOW_DISCONNECTION
         self._timestep_overflow[:] = 0
-        self._nb_timestep_overflow_allowed[
+        self._protection_counter[:] = 0
+        self._nb_ts_max_protection_counter[
             :
         ] = self._parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
 
@@ -3990,7 +4009,8 @@ class BaseEnv(GridObjects, RandomObject, ABC):
             "_forbid_dispatch_off",
             "_no_overflow_disconnection",
             "_timestep_overflow",
-            "_nb_timestep_overflow_allowed",
+            "_protection_counter",
+            "_nb_ts_max_protection_counter",
             "_hard_overflow_threshold",
             "_times_before_line_status_actionable",
             "_max_timestep_line_status_deactivated",
@@ -4615,7 +4635,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         if hasattr(self, "_BaseEnv__closed") and not self.__closed:
             self.close()
 
-    def _update_vector_with_timestep(self, horizon, is_overflow):
+    def _update_vector_with_timestep(self, horizon, is_overflow, protection_triggered):
         """
         INTERNAL
 
@@ -4671,9 +4691,10 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         # this is tricky here because I have no model to predict the future... 
         # As i cannot do better, I simply do "if I am in overflow now, i will be later"
         self._timestep_overflow[is_overflow] += (horizon - 1)
+        self._protection_counter[protection_triggered] += (horizon - 1)
         return still_in_maintenance, reconnected, first_ts_maintenance
     
-    def _reset_to_orig_state(self, obs):
+    def _reset_to_orig_state(self, obs: BaseObservation):
         """
         INTERNAL
 
@@ -4736,6 +4757,7 @@ class BaseEnv(GridObjects, RandomObject, ABC):
         
         # soft overflow
         self._timestep_overflow[:] = obs.timestep_overflow
+        self._protection_counter[:] = obs.timestep_protection_engaged
 
     def forecasts(self):
         # ensure that the "env.chronics_handler.forecasts" is called at most once per step
