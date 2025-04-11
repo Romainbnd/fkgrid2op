@@ -1464,7 +1464,7 @@ class Backend(GridObjects, ABC):
         iter_num = 0
         while True:
             # simulate the cascading failure
-            lines_flows = 1.0 * self.get_line_flow()
+            lines_flows = self.get_line_flow()
             thermal_limits = self.get_thermal_limit()
             lines_status = self.get_line_status()
 
