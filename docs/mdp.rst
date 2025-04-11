@@ -654,7 +654,7 @@ The solver is then called and there are 2 alternatives (again):
    terminal state :math:`s_{\emptyset}` (ignore all the steps bellow)
 #. or a physical solution is found and the process carries out in the next steps
 
-.. _mdp--emulation-step:
+.. _mdp-protection-emulation-step:
 
 Step 5: Emulation of the "protections"
 ++++++++++++++++++++++++++++++++++++++++++

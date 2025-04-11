@@ -195,6 +195,59 @@ There are 4 **__main__** types of method you need to implement if you want to us
     be the case for *eg* :func:`grid2op.Observation.BaseObservation.simulate` or
     for :class:`grid2op.simulator.Simulator`.
 
+init function
+----------------
+
+The `__init__` function of your backend class should accept key-word arguments
+`detailed_infos_for_cascading_failures` and `can_be_copied`.
+
+It should also avoid regular arguments (some part of the code recreate backend instanced based on
+key-wrod arguments).
+
+We recommend you do something like this :
+
+.. code-block:: python
+
+        def __init__(self,
+                     detailed_infos_for_cascading_failures:bool=False,
+                     can_be_copied:bool=True,
+                     OTHER_KWARGS_1, 
+                     OTHER_KWARGS_2,
+                     ETC):
+        Backend.__init__(
+            self,
+            detailed_infos_for_cascading_failures=detailed_infos_for_cascading_failures,
+            can_be_copied=can_be_copied,
+            OTHER_KWARGS_1=OTHER_KWARGS_1,
+            OTHER_KWARGS_2=OTHER_KWARGS_2,
+        )
+
+
+For example the top first lines of the code of PandaPowerBackend looks like:
+
+.. code-block:: python
+
+    def __init__(
+        self,
+        detailed_infos_for_cascading_failures : bool=False,
+        lightsim2grid : bool=False,  # use lightsim2grid as pandapower powerflow solver
+        dist_slack : bool=False,
+        max_iter : int=10,
+        can_be_copied: bool=True,
+        with_numba: bool=NUMBA_,
+    ):
+    
+        # small irrelevant piece of code
+
+        Backend.__init__(
+            self,
+            detailed_infos_for_cascading_failures=detailed_infos_for_cascading_failures,
+            can_be_copied=can_be_copied,
+            lightsim2grid=lightsim2grid,
+            dist_slack=dist_slack,
+            max_iter=max_iter,
+            with_numba=with_numba,
+        )
 
 .. _grid-description:
 
