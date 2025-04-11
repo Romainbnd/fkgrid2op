@@ -163,6 +163,16 @@ class BaseObservation(GridObjects):
     timestep_overflow: :class:`numpy.ndarray`, dtype:int
         Gives the number of time steps since a powerline is in overflow.
 
+    timestep_protection_engaged: :class:`numpy.ndarray`, dtype:int
+        .. versionadded:: 1.11.0
+        
+        This counts the number of consecutive steps the "Time overcurrent protection" is too high.
+        
+        It is exacly :attr:`BaseObservation.timestep_overflow` unless the parameter
+        :attr:`grid2op.Parameters.Parameters.SOFT_OVERFLOW_THRESHOLD` != 1. 
+        
+        In that case it counts the consecutive steps for which `flow > limit * SOFT_OVERFLOW_THRESHOLD`
+
     time_before_cooldown_line: :class:`numpy.ndarray`, dtype:int
         For each powerline, it gives the number of time step the powerline is unavailable due to "cooldown"
         (see :attr:`grid2op.Parameters.Parameters.NB_TIMESTEP_COOLDOWN_LINE` for more information). 0 means the
@@ -436,7 +446,7 @@ class BaseObservation(GridObjects):
     gen_p_detached: :class:`numpy.ndarray`, dtype:float
     
     storage_p_detached: :class:`numpy.ndarray`, dtype:float
-        
+    
     _shunt_p: :class:`numpy.ndarray`, dtype:float
         Shunt active value (only available if shunts are available) (in MW)
 
@@ -516,6 +526,8 @@ class BaseObservation(GridObjects):
         "load_q_detached",
         "gen_p_detached",
         "storage_p_detached",
+        # better handling of soft_overflow_threshold (>= 1.11.0)
+        "timestep_protection_engaged",
     ]
 
     attr_list_vect = None
@@ -551,6 +563,7 @@ class BaseObservation(GridObjects):
 
         cls = type(self)
         self.timestep_overflow = np.empty(shape=(cls.n_line,), dtype=dt_int)
+        self.timestep_protection_engaged = np.empty(shape=(cls.n_line,), dtype=dt_int)
 
         # 0. (line is disconnected) / 1. (line is connected)
         self.line_status = np.empty(shape=cls.n_line, dtype=dt_bool)
@@ -744,6 +757,8 @@ class BaseObservation(GridObjects):
             "load_q_detached",
             "gen_p_detached",
             "storage_p_detached",
+            # soft_overflow_threshold
+            "timestep_protection_engaged"
         ]
 
         if type(self).shunts_data_available:
@@ -1376,6 +1391,7 @@ class BaseObservation(GridObjects):
         self.time_next_maintenance[:] = 0
         self.duration_next_maintenance[:] = 0
         self.timestep_overflow[:] = 0
+        self.timestep_protection_engaged[:] = 0
 
         # calendar data
         self.year = dt_int(1970)
@@ -1534,6 +1550,7 @@ class BaseObservation(GridObjects):
 
         # overflow
         self.timestep_overflow[:] = 0
+        self.timestep_protection_engaged[:] = 0
 
         if type(self).shunts_data_available:
             self._shunt_p[:] = 0.0
@@ -2485,6 +2502,7 @@ class BaseObservation(GridObjects):
             - `cooldown`: the number of step you need to wait before being able to act on this powerline (max over all powerlines)
             - `thermal_limit`: maximum flow allowed on the the powerline (sum over all powerlines)
             - `timestep_overflow`: number of time steps during which the powerline is on overflow (max over all powerlines)
+            - `timestep_protection_engaged`: number of time steps during which the "time overcurrent protection" are triggered (new in version 1.10.0)
             - `p_or`: active power injected at this node at the "origin side" (in MW) (sum over all the powerlines).
             - `p_ex`: active power injected at this node at the "extremity side" (in MW) (sum over all the powerlines).
             - `q_or`: reactive power injected at this node at the "origin side" (in MVAr) (sum over all the powerlines).
@@ -2688,6 +2706,10 @@ class BaseObservation(GridObjects):
                                fun_reduce=lambda x, y: x + y)
         self._add_edges_simple(
             self.timestep_overflow, "timestep_overflow", lor_bus, lex_bus, graph,
+            fun_reduce=max
+        )
+        self._add_edges_simple(
+            self.timestep_protection_engaged, "timestep_protection_engaged", lor_bus, lex_bus, graph,
             fun_reduce=max
         )
         self._add_edges_simple(
@@ -2995,6 +3017,7 @@ class BaseObservation(GridObjects):
         nodes_prop = [("rho", self.rho),
                       ("connected", self.line_status),
                       ("timestep_overflow", self.timestep_overflow),
+                      ("timestep_protection_engaged", self.timestep_protection_engaged),
                       ("time_before_cooldown_line", self.time_before_cooldown_line),
                       ("time_next_maintenance", self.time_next_maintenance),
                       ("duration_next_maintenance", self.duration_next_maintenance),
@@ -3844,6 +3867,7 @@ class BaseObservation(GridObjects):
         if self._dictionnarized is None:
             self._dictionnarized = {}
             self._dictionnarized["timestep_overflow"] = self.timestep_overflow
+            self._dictionnarized["timestep_protection_engaged"] = self.timestep_protection_engaged
             self._dictionnarized["line_status"] = self.line_status
             self._dictionnarized["topo_vect"] = self.topo_vect
             self._dictionnarized["loads"] = {}
@@ -4398,6 +4422,7 @@ class BaseObservation(GridObjects):
 
         # get the values related to topology
         self.timestep_overflow[:] = env._timestep_overflow
+        self.timestep_protection_engaged[:] = env._protection_counter
 
         # attribute that depends only on the backend state
         self._update_attr_backend(env.backend)

@@ -1795,7 +1795,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
         th_lims[2] = 18849.43 / 1.6  # disconnected at second iteration
         self.backend.set_thermal_limit(th_lims)
         
-        env._timestep_overflow[0] = 2  # already 1 step on overflow
+        env._protection_counter[0] = 2  # already 1 step on overflow
         disco, infos, conv_ = self.backend.next_grid_state(env, is_dc=False)
         res_a = self.backend.lines_or_info()[-1]
         assert conv_ is None
@@ -1882,7 +1882,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
-        env._timestep_overflow[self.id_2nd_line_disco] = 0
+        env._protection_counter[self.id_2nd_line_disco] = 0
         thermal_limit = 10 * self.lines_flows_init
         thermal_limit[self.id_first_line_disco] = (
             self.lines_flows_init[self.id_first_line_disco] / 2
@@ -1924,7 +1924,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
-        env._timestep_overflow[self.id_2nd_line_disco] = 1
+        env._protection_counter[self.id_2nd_line_disco] = 1
 
         thermal_limit = 10 * self.lines_flows_init
         thermal_limit[self.id_first_line_disco] = (
@@ -1967,8 +1967,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
         type(self.backend).set_no_storage()
         self.backend.assert_grid_correct()
 
-        env._timestep_overflow[self.id_2nd_line_disco] = 2
-
+        env._protection_counter[self.id_2nd_line_disco] = 2
         thermal_limit = 10 * self.lines_flows_init
         thermal_limit[self.id_first_line_disco] = (
             self.lines_flows_init[self.id_first_line_disco] / 2
@@ -1978,7 +1977,7 @@ class BaseTestEnvPerformsCorrectCascadingFailures(MakeBackend):
 
         disco, infos, conv_ = self.backend.next_grid_state(env, is_dc=False)
         assert conv_ is None
-        assert len(infos) == 2  # check that there is a cascading failure of length 2
+        assert len(infos) == 2, f"{len(infos)} vs 2"  # check that there is a cascading failure of length 2
         assert disco[self.id_first_line_disco] >= 0
         assert disco[self.id_2nd_line_disco] >= 0
         assert np.sum(disco >= 0) == 2
@@ -2394,6 +2393,7 @@ class BaseTestResetEqualsLoadGrid(MakeBackend):
         assert np.all(obs1.line_status == obs2.line_status)
         assert np.all(obs1.topo_vect == obs2.topo_vect)
         assert np.all(obs1.timestep_overflow == obs2.timestep_overflow)
+        assert np.all(obs1.timestep_protection_engaged == obs2.timestep_protection_engaged)
         assert np.all(obs1.time_before_cooldown_line == obs2.time_before_cooldown_line)
         assert np.all(obs1.time_before_cooldown_sub == obs2.time_before_cooldown_sub)
         assert np.all(obs1.time_next_maintenance == obs2.time_next_maintenance)

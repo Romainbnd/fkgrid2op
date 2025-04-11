@@ -1459,13 +1459,13 @@ class Backend(GridObjects, ABC):
             return disconnected_during_cf, infos, conv_
 
         # the environment disconnect some powerlines
-        init_time_step_overflow = copy.deepcopy(env._timestep_overflow)
-        counter_increased = np.zeros_like(init_time_step_overflow, dtype=dt_bool)
+        protection_counter = copy.deepcopy(env._protection_counter)
+        counter_increased = np.zeros_like(protection_counter, dtype=dt_bool)
         iter_num = 0
         while True:
             # simulate the cascading failure
-            lines_flows = 1.0 * self.get_line_flow()
-            thermal_limits = self.get_thermal_limit() * env._parameters.SOFT_OVERFLOW_THRESHOLD  # SOFT_OVERFLOW_THRESHOLD new in grid2op 1.9.3
+            lines_flows = self.get_line_flow()
+            thermal_limits = self.get_thermal_limit()
             lines_status = self.get_line_status()
 
             # a) disconnect lines on hard overflow (that are still connected)
@@ -1474,12 +1474,16 @@ class Backend(GridObjects, ABC):
             ) & lines_status
 
             # b) deals with soft overflow (disconnect them if lines still connected)
-            mask_inc = (lines_flows >= thermal_limits) & lines_status
-            mask_inc[counter_increased] = False
-            init_time_step_overflow[mask_inc] += 1
+            if env._called_from_reset:
+                # no soft overflow after a reset
+                mask_inc = np.zeros_like(thermal_limits, dtype=dt_bool)
+            else: 
+                mask_inc = (lines_flows > env._parameters.SOFT_OVERFLOW_THRESHOLD * thermal_limits) & lines_status
+                mask_inc[counter_increased] = False
+            protection_counter[mask_inc] += 1
             counter_increased[mask_inc] = True
             to_disc[
-                (init_time_step_overflow > env._nb_timestep_overflow_allowed)
+                (protection_counter > env._nb_ts_max_protection_counter)
                 & lines_status
             ] = True
 

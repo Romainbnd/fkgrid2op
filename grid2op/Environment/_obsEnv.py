@@ -364,13 +364,13 @@ class _ObsEnv(BaseEnv):
         
         if time_step >= 1:
             is_overflow = obs.rho > 1.
-            
+            protection_triggered = obs.rho > self._parameters.SOFT_OVERFLOW_THRESHOLD
             # handle the components that depends on the time
             (
                 still_in_maintenance,
                 reconnected,
                 first_ts_maintenance,
-            ) = self._update_vector_with_timestep(time_step, is_overflow)
+            ) = self._update_vector_with_timestep(time_step, is_overflow, protection_triggered)
             if first_ts_maintenance.any():
                 set_status = np.array(self._line_status_me, dtype=dt_int)
                 set_status[first_ts_maintenance] = -1

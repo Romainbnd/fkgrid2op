@@ -585,6 +585,7 @@ class __AuxMultiDiscreteActSpace:
 
 
 if GYM_AVAILABLE:
+    # pragma: no cover
     from gym.spaces import Box as LegacyGymBox, MultiDiscrete as LegacyGymMultiDiscrete
     from grid2op.gym_compat.box_gym_actspace import BoxLegacyGymActSpace
     from grid2op.gym_compat.continuous_to_discrete import ContinuousToDiscreteConverterLegacyGym
