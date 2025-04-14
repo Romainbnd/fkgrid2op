@@ -31,7 +31,8 @@ pkgs = {
         "networkx>=2.4",
         "requests>=2.23.0",
         "packaging",  # because gym changes the way it uses numpy prng in version 0.26 and i need both gym before and after...
-        "typing_extensions"
+        "typing_extensions",
+        "orderly_set<5.4.0; python_version<='3.8'"
     ],
     "extras": {
         "optional": [
@@ -71,7 +72,7 @@ pkgs = {
         "plot": ["imageio"],
         "test": ["lightsim2grid",
                  "numba",
-                 "gym>=0.26",
+                #  "gym>=0.26",
                  "gymnasium",
                 #  "stable-baselines3>=2.0",
                  "nbconvert",
