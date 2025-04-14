@@ -202,6 +202,9 @@ interesting part of this framework:
 * [11_IntegrationWithExistingRLFrameworks](getting_started/11_IntegrationWithExistingRLFrameworks.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Grid2Op/grid2op/blob/master/getting_started/11_IntegrationWithExistingRLFrameworks.ipynb)
   explains how to use grid2op with other reinforcement learning framework. TODO: this needs to be redone
+* [12_DetachmentOfLoadsAndGenerators.ipynb](getting_started/12_DetachmentOfLoadsAndGenerators.ipynb.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Grid2Op/grid2op/blob/master/getting_started/12_DetachmentOfLoadsAndGenerators.ipynb.ipynb)
+  explains briefly what is detachment.
 
 Try them out in your own browser without installing
 anything with the help of mybinder:
