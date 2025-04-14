@@ -685,6 +685,28 @@ class TestBasisObsBehaviour(unittest.TestCase):
                 0,
                 0,
             ],
+            "timestep_protection_engaged": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
             "time_before_cooldown_sub": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             "time_next_maintenance": [
                 -1,
@@ -934,6 +956,8 @@ class TestBasisObsBehaviour(unittest.TestCase):
                 # dt_float,
                 # dt_float,
                 # dt_float,
+                # timestep_protection_engaged
+                dt_int
             ],
             dtype=object,
         )
@@ -1012,9 +1036,11 @@ class TestBasisObsBehaviour(unittest.TestCase):
                 # 11,
                 # 5,
                 # 0,
+                # timestep_protection_engaged
+                20
             ]
         )
-        self.size_obs = 429 + 4 + 4 + 2 + 1 + 10 + 5 + 0 + 5 # + 11 + 5 + 0 + 11 + 11 + 5
+        self.size_obs = 429 + 4 + 4 + 2 + 1 + 10 + 5 + 0 + 5 + 20
 
     def tearDown(self):
         self.env.close()
