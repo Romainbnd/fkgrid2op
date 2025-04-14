@@ -29,6 +29,7 @@ from grid2op.Observation import CompleteObservation
 from grid2op.Agent import RandomAgent
 from grid2op.tests.helper_path_test import data_test_dir
 from grid2op.Episode import EpisodeData
+from grid2op.Exceptions import Grid2OpException
 
 try:
     from lightsim2grid import LightSimBackend
@@ -173,6 +174,8 @@ class TestBasicEnvironmentRunner(unittest.TestCase):
             "1.10.2",
             "1.10.3",
             "1.10.4",
+            "1.10.5",
+            # "1.10.5.post1",  # missing from the data stored apparently
         ]
         # first check a normal run
         curr_version = "test_version"
@@ -239,7 +242,10 @@ class TestBasicEnvironmentRunner(unittest.TestCase):
             assert "curtailment" in CompleteObservation.attr_list_vect, (
                 f"error after the legacy version " f"{g2op_version}"
             )
-            this_episode = EpisodeData.from_disk(base_path, episode_path)
+            try:
+                this_episode = EpisodeData.from_disk(base_path, episode_path)
+            except Grid2OpException as exc_:
+                raise AssertionError(f"Impossible to load version {g2op_version}")
             assert "curtailment" in CompleteObservation.attr_list_vect, (
                 f"error after the legacy version " f"{g2op_version}"
             )

@@ -339,7 +339,7 @@ class BaseAction(GridObjects):
     Typically `0 <= storage_id < env.n_storage` and `amount` is a floating point between the maximum
     power and minimum power the storage unit can absorb / produce.
 
-    Finally, in order to perform curtailment action on renewable generators, you can:
+    In order to perform curtailment action on renewable generators, you can:
 
     .. code-block:: python
 
@@ -354,7 +354,40 @@ class BaseAction(GridObjects):
     giving the limit of power you allow each renewable generator to produce (expressed in ratio of
     Pmax). For example if `gen_id=1` and `amount=0.7` it means you limit the production of
     generator 1 to 70% of its Pmax.
+    
+    Finally, provided that the environment is loaded with `allow_detachment=True`, you can also
+    perform "detachment" action on the grid with:
+    
+    .. code-block:: python
+    
+        import grid2op
+        from grid2op.Action import BaseAction
+        env_name = "l2rpn_case14_sandbox"  # or any other name
+        env = grid2op.make(env_name, allow_detachment=True)
 
+        # method 1
+        act = env.action_space({"detach_load": [load1_id, load2_id, ...]})
+
+        # method 2
+        act = env.action_space()
+        act.detach_load = [load1_id, load2_id, ...]
+
+    You can do similar action for storage and generator, for example
+    
+    .. code-block:: python
+    
+        import grid2op
+        from grid2op.Action import BaseAction
+        env_name = "educ_case14_storage"  # or any other name
+        env = grid2op.make(env_name, test=True, allow_detachment=True)
+
+        # for generators (method 1 showed here, but method 2 works, of course)
+        act = env.action_space({"detach_gen": [gen1_id, gen2_id, ...]})
+        
+        # for storage units (method 2 showed here, but method 1 works too, of course)
+        act = env.action_space()
+        act.detach_storage = [storage1_id, storage2_id, ...]
+    
     """
 
     authorized_keys = {
@@ -550,19 +583,6 @@ class BaseAction(GridObjects):
                 if el in cls.authorized_keys:
                     cls.authorized_keys.remove(el)
             cls._update_value_set()
-        # else:
-        #     # I support detachment, I need to make sure this is registered
-        #     cls.attr_list_vect = copy.deepcopy(cls.attr_list_vect)
-        #     cls.attr_list_set = copy.deepcopy(cls.attr_list_set)
-        #     # add the detachment from the list to vector
-        #     for el in ["_detach_load", "_detach_gen", "_detach_storage"]:
-        #         if el not in cls.attr_list_vect:
-        #             cls.attr_list_vect.append(el)
-        #     # add the detachment from the allowed action
-        #     for el in ["detach_load", "detach_gen", "detach_storage"]:
-        #         if el not in cls.authorized_keys:
-        #             cls.authorized_keys.add(el)
-        #     cls._update_value_set()
         return super().process_detachment()
         
     def copy(self) -> "BaseAction":
@@ -3569,6 +3589,16 @@ class BaseAction(GridObjects):
                 res.append(f"\t - Raise alert(s) {line_str}")
             else:
                 res.append("\t - Not raise any alert")
+        
+        if my_cls.detachment_is_allowed:
+            for el in my_cls.OBJ_SUPPORT_DETACH:
+                _modif_detach_xxx = getattr(self, f"_modif_detach_{el}")
+                _detach_xxx = getattr(self, f"_detach_{el}")
+                if _modif_detach_xxx:
+                    res.append(f"\t - Detach {el}: {_detach_xxx.nonzero()[0]}")
+                else:
+                    res.append(f"\t - Not detach any {el}")
+                    
         return "\n".join(res)
 
     def impact_on_objects(self) -> dict:

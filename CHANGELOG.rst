@@ -100,7 +100,7 @@ Native multi agents support:
 - add detachment
 - add change_bus / set_bus
 
-[1.11.0] - 202x-yy-zz
+[1.11.0] - 2025-04-14
 -----------------------
 - [BREAKING] Change for `FromMultiEpisodeData` that disables the caching by default
   when creating the data.
