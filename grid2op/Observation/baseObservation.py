@@ -432,20 +432,65 @@ class BaseObservation(GridObjects):
           `env.parameters.ALERT_TIME_WINDOW` steps)  
 
     gen_p_delta: :class:`numpy.ndarray`, dtype:float
+        .. versionadded:: 1.11.0
+        
+        Difference between the generator setpoint (asked by the environment)
+        and the generator real active value at the given steps.
+        
+        For example, if the "asked generator value" is such that 
+        "sum asked_generator_value = sum load" then the 
+        gen_p_delta attribute will corresponds exactly to how the 
+        power losses are compensated by the backend.
      
     load_detached: :class:`numpy.ndarray`, dtype:bool
+        .. versionadded:: 1.11.0
+        
+        Whether or not each load has been detached (only 
+        available for env supporting detachement feature)
     
     gen_detached: :class:`numpy.ndarray`, dtype:bool
+        .. versionadded:: 1.11.0
+        
+        Whether or not each generator has been detached (only 
+        available for env supporting detachement feature)
     
     storage_detached: :class:`numpy.ndarray`, dtype:bool
+        .. versionadded:: 1.11.0
+        
+        Whether or not each storage unit has been detached (only 
+        available for env supporting detachement feature)
     
     load_p_detached: :class:`numpy.ndarray`, dtype:float
+        .. versionadded:: 1.11.0
+        
+        Amount (in MW) given how many MW have beeen "detached"
+        for each load on the grid. It is 0 for 
+        load still connected to the grid and only available for
+        environment supporting detachment.
     
     load_q_detached: :class:`numpy.ndarray`, dtype:float
+        .. versionadded:: 1.11.0
+        
+        Amount (in MVAr) given how many MVAr have beeen "detached"
+        for each load on the grid. It is 0 for 
+        load still connected to the grid and only available for
+        environment supporting detachment.
     
     gen_p_detached: :class:`numpy.ndarray`, dtype:float
+        .. versionadded:: 1.11.0
+        
+        Amount (in MW) given how many MW have beeen "detached"
+        for each generator on the grid. It is 0 for 
+        generator still connected to the grid and only available for
+        environment supporting detachment.
     
     storage_p_detached: :class:`numpy.ndarray`, dtype:float
+        .. versionadded:: 1.11.0
+        
+        Amount (in MW) given how many MW have beeen "detached"
+        for each storage unit on the grid. It is 0 for 
+        storage unit still connected to the grid and only available for
+        environment supporting detachment.
     
     _shunt_p: :class:`numpy.ndarray`, dtype:float
         Shunt active value (only available if shunts are available) (in MW)
