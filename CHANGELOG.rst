@@ -124,6 +124,8 @@ Native multi agents support:
   the functions `load_grid`, `reset`, `copy` and `apply_action` which were part of the public
   API. These last member functions will be renamed (in a later version) `_load_grid`,
   `_reset`, `_copy` and `_apply_action` to reflect this change. NOT for this version however !
+- [BREAKING] removal of the `rest_server` grid2op module (it will be release as a separate package instead)
+  It has been removed from grid2op core package for securtiy reasons.
 - [FIXED] issue https://github.com/Grid2op/grid2op/issues/657
 - [FIXED] missing an import on the `MaskedEnvironment` class
 - [FIXED] a bug when trying to set the load_p, load_q, gen_p, gen_v by names.
