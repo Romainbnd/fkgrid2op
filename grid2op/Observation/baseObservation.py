@@ -1339,6 +1339,8 @@ class BaseObservation(GridObjects):
             "load_q_detached",
             "gen_p_detached",
             "storage_p_detached",
+            # protection (>= 1.11.0)
+            "timestep_protection_engaged"
         ]:
             try:
                 cls.attr_list_vect.remove(el)
