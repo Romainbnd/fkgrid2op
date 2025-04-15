@@ -175,7 +175,8 @@ class TestBasicEnvironmentRunner(unittest.TestCase):
             "1.10.3",
             "1.10.4",
             "1.10.5",
-            # "1.10.5.post1",  # missing from the data stored apparently
+            # "1.10.5.post1",  # missing from the data stored apparently,
+            "1.11.0",
         ]
         # first check a normal run
         curr_version = "test_version"
