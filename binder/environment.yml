@@ -1,17 +1,12 @@
-name: grid2op-environment
 channels:
   - conda-forge
   - defaults
 
 dependencies:
-  - python
+  - python=3.10
   - numpy
-  - keras
+  - scipy
+  - pandas
   - pip
   - pip:
-    - grid2op
-    - numpy
-    - numba
-    - seaborn
-    - plotly
-    - imageio
+      - grid2op
