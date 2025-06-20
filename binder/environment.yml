@@ -1,6 +1,8 @@
 name: grid2op-environment
 channels:
   - conda-forge
+  - defaults
+
 dependencies:
   - python
   - numpy
